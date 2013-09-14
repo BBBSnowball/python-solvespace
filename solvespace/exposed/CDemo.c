@@ -258,12 +258,30 @@ int main(void)
     sys.failed     = (Slvs_hConstraint *) CheckMalloc(50*sizeof(sys.failed[0]));
     sys.faileds    = 50;
 
-//    Example3d();
     for(;;) {
         Example2d();
         sys.params = sys.constraints = sys.entities = 0;
         break;
     }
+
+
+    
+    memset(&sys, 0, sizeof(sys));
+    sys.param      = (Slvs_Param       *) CheckMalloc(50*sizeof(sys.param[0]));
+    sys.entity     = (Slvs_Entity      *) CheckMalloc(50*sizeof(sys.entity[0]));
+    sys.constraint = (Slvs_Constraint  *) CheckMalloc(50*sizeof(sys.constraint[0]));
+
+    sys.failed     = (Slvs_hConstraint *) CheckMalloc(50*sizeof(sys.failed[0]));
+    sys.faileds    = 50;
+
+    for(;;) {
+        Example2d();
+        sys.params = sys.constraints = sys.entities = 0;
+        break;
+    }
+
+    Example3d();
+
     return 0;
 }
 
