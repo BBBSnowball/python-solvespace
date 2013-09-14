@@ -30,23 +30,19 @@ LIBS =
 CC = gcc
 CXX = g++
 
-all: $(OBJDIR)/CDemo.exe
-	cp $(OBJDIR)/CDemo.exe .
-	LD_LIBRARY_PATH=. ./CDemo.exe
+all: cdemo
+	LD_LIBRARY_PATH=. ./cdemo
 
 clean:
-	rm -f obj/*
+	rm -f obj/* cdemo libslvs.so
 
 .SECONDEXPANSION:
 
-$(OBJDIR)/slvs.dll: $(SSOBJS) $(LIBOBJS) $(W32OBJS)
+libslvs.so: $(SSOBJS) $(LIBOBJS) $(W32OBJS)
 	$(CXX) -shared -fPIC -o$@ $(SSOBJS) $(LIBOBJS) $(W32OBJS) $(LIBS)
-	cp $(OBJDIR)/slvs.dll libslvs.so
-	echo slvs.dll
 
-$(OBJDIR)/CDemo.exe: CDemo.c $(OBJDIR)/slvs.dll
+cdemo: CDemo.c libslvs.so
 	$(CXX) $(CFLAGS) -o$@ CDemo.c -L. -lslvs $(LIBS)
-	echo CDemo.exe
 
 $(SSOBJS): ../$$(basename $$(notdir $$@)).cpp $(HEADERS)
 	$(CXX) $(CFLAGS_SHARED) $(DEFINES) -c -o$@ $<
