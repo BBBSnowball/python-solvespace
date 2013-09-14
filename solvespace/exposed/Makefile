@@ -1,9 +1,11 @@
-DEFINES = -D_WIN32_WINNT=0x500 -DISOLATION_AWARE_ENABLED -D_WIN32_IE=0x500 -DWIN32_LEAN_AND_MEAN -DWIN32 -DLIBRARY
+WIN_DEFINES = -D_WIN32_WINNT=0x500 -D_WIN32_IE=0x500 -DWIN32_LEAN_AND_MEAN
+DEFINES = -DISOLATION_AWARE_ENABLED -DLIBRARY
 # Use the multi-threaded static libc because libpng and zlib do; not sure if anything bad
 # happens if those mix, but don't want to risk it.
 #TODO -MT - multithread?
 #TODO /Zi /EHs /O2 /GS-
-CFLAGS  = -Iextlib -I../../common/win32 -D_DEBUG -D_CRT_SECURE_NO_WARNINGS -I. -I.. -O2 -g
+CFLAGS  = -Iextlib -I../../common/win32 -D_DEBUG -D_CRT_SECURE_NO_WARNINGS -I. -I.. -O2 -g -Wno-write-strings -fpermissive
+CFLAGS_SHARED = -fPIC -shared $(CFLAGS)
 
 HEADERS = ../solvespace.h ../dsc.h ../sketch.h ../expr.h slvs.h
 
@@ -26,10 +28,11 @@ LIBOBJS  = $(OBJDIR)/lib.obj \
 LIBS = 
 
 CC = gcc
+CXX = g++
 
 all: $(OBJDIR)/CDemo.exe
 	cp $(OBJDIR)/CDemo.exe .
-	CDemo.exe
+	LD_LIBRARY_PATH=. ./CDemo.exe
 
 clean:
 	rm -f obj/*
@@ -37,21 +40,19 @@ clean:
 .SECONDEXPANSION:
 
 $(OBJDIR)/slvs.dll: $(SSOBJS) $(LIBOBJS) $(W32OBJS)
-	$(CC) -o$(OBJDIR)/slvs.dll $(SSOBJS) $(LIBOBJS) $(W32OBJS) $(LIBS)
-	cp $(OBJDIR)/slvs.dll .
+	$(CXX) -shared -fPIC -o$@ $(SSOBJS) $(LIBOBJS) $(W32OBJS) $(LIBS)
+	cp $(OBJDIR)/slvs.dll libslvs.so
 	echo slvs.dll
 
 $(OBJDIR)/CDemo.exe: CDemo.c $(OBJDIR)/slvs.dll
-	$(CC) $(CFLAGS) -o$(OBJDIR)/CDemo.exe CDemo.c $(OBJDIR)/slvs.lib $(LIBS)
+	$(CXX) $(CFLAGS) -o$@ CDemo.c -L. -lslvs $(LIBS)
 	echo CDemo.exe
 
 $(SSOBJS): ../$$(basename $$(notdir $$@)).cpp $(HEADERS)
-	$(CC) $(CFLAGS) $(DEFINES) -c -o$(OBJDIR)/$(@B).obj $<
+	$(CXX) $(CFLAGS_SHARED) $(DEFINES) -c -o$@ $<
 
 $(W32OBJS): ../win32/$$(basename $$(notdir $$@)).cpp $(HEADERS)
-	$(CC) $(CFLAGS) $(DEFINES) -c -o$(OBJDIR)/$(@B).obj $<
+	$(CXX) $(CFLAGS_SHARED) $(DEFINES) -c -o$@ $<
 
 $(LIBOBJS): $$(basename $$(notdir $$@)).cpp $(HEADERS)
-	$(CC) $(CFLAGS) $(DEFINES) -c -o$(OBJDIR)/$(@B).obj $<
-
-
+	$(CXX) $(CFLAGS_SHARED) $(DEFINES) -c -o$@ $<

@@ -5,7 +5,12 @@
 //
 // Copyright 2008-2013 Jonathan Westhues.
 //-----------------------------------------------------------------------------
-#include <windows.h>
+#ifdef WIN32
+#   include <windows.h>
+#else
+#   include <stdlib.h>
+#   include <string.h>
+#endif
 #include <stdio.h>
 
 #include "slvs.h"
@@ -232,7 +237,7 @@ void Example2d(void)
         int i;
         printf("solve failed: problematic constraints are:");
         for(i = 0; i < sys.faileds; i++) {
-            printf(" %d", sys.failed[i]);
+            printf(" %lu", sys.failed[i]);
         }
         printf("\n");
         if(sys.result == SLVS_RESULT_INCONSISTENT) {
@@ -246,12 +251,12 @@ void Example2d(void)
 int main(void)
 {
     memset(&sys, 0, sizeof(sys));
-    sys.param      = CheckMalloc(50*sizeof(sys.param[0]));
-    sys.entity     = CheckMalloc(50*sizeof(sys.entity[0]));
-    sys.constraint = CheckMalloc(50*sizeof(sys.constraint[0]));
+    sys.param      = (Slvs_Param       *) CheckMalloc(50*sizeof(sys.param[0]));
+    sys.entity     = (Slvs_Entity      *) CheckMalloc(50*sizeof(sys.entity[0]));
+    sys.constraint = (Slvs_Constraint  *) CheckMalloc(50*sizeof(sys.constraint[0]));
 
-    sys.failed  = CheckMalloc(50*sizeof(sys.failed[0]));
-    sys.faileds = 50;
+    sys.failed     = (Slvs_hConstraint *) CheckMalloc(50*sizeof(sys.failed[0]));
+    sys.faileds    = 50;
 
 //    Example3d();
     for(;;) {

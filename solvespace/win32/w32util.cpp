@@ -6,12 +6,16 @@
 //
 // Copyright 2008-2013 Jonathan Westhues.
 //-----------------------------------------------------------------------------
-#include <windows.h>
+#ifdef WIN32
+#   include <windows.h>
+#endif
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 
 #include "solvespace.h"
+
+#ifdef WIN32
 
 static HANDLE PermHeap, TempHeap;
 
@@ -87,3 +91,70 @@ void InitHeaps(void) {
     FreeAllTemporary();
 }
 
+#else   // not WIN32
+
+#include <stdlib.h>
+
+//TODO We're using the default heap here, so the 'free' trick (see above)
+//     doesn't work. This means that we might leak a lot of memory.
+//     -> We could keep track of temporary stuff and free it in
+//        FreeAllTemporary. Of course, we must 'forget' any pointer that
+//        has been deleted with FreeTemporary, so we don't free it again.
+
+void dbp(char *str, ...)
+{
+    va_list f;
+    static char buf[1024*50];
+    va_start(f, str);
+    vsnprintf(buf, sizeof(buf), str, f);
+    va_end(f);
+
+    fprintf(stderr, "%s", buf);
+}
+
+void GetAbsoluteFilename(char *file)
+{
+    char* absoluteFile = realpath(file, NULL);
+    if (strlen(absoluteFile) > MAX_PATH-1) {
+        printf("This absolute path is too long: %s\nI will quit now. Sorry.\n", absoluteFile);
+        exit(2);
+    }
+    strcpy(file, absoluteFile);
+}
+
+void *AllocTemporary(int n) { return MemAlloc(n); }
+void FreeTemporary(void *p) { MemFree(p); }
+void FreeAllTemporary(void) {
+    //TODO
+
+    vl();
+}
+
+void *MemRealloc(void *p, int n) {
+    if(!p) {
+        return MemAlloc(n);
+    }
+
+    p = realloc(p, n);
+    if(!p) oops();
+    //TODO initialize additional memory with zeros
+    return p;
+}
+void *MemAlloc(int n) {
+    void* x = malloc(n);
+    memset(x, 0, n);
+    return x;
+}
+void MemFree(void *p) {
+    free(p);
+}
+
+void vl(void) {
+    // we cannot validate resp. stdlib does it automatically at
+    // appropriate times, if we have compiled it for debug
+}
+
+void InitHeaps(void) {
+}
+
+#endif

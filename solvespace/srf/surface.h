@@ -222,7 +222,11 @@ public:
     Vector      start;
     Vector      finish;
 
+#   ifdef WIN32
     static STrimBy STrimBy::EntireCurve(SShell *shell, hSCurve hsc, bool bkwds);
+#   else
+    static STrimBy          EntireCurve(SShell *shell, hSCurve hsc, bool bkwds);
+#   endif
 };
 
 // An intersection point between a line and a surface

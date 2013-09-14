@@ -399,6 +399,9 @@ int System::Solve(Group *g, int *dof, List<hConstraint> *bad,
     WriteEquationsExceptFor(Constraint::NO_CONSTRAINT, g);
 
     int i, j = 0;
+
+    int rank;
+    
 /*
     dbp("%d equations", eq.n);
     for(i = 0; i < eq.n; i++) {
@@ -449,7 +452,7 @@ int System::Solve(Group *g, int *dof, List<hConstraint> *bad,
 
     EvalJacobian();
 
-    int rank = CalculateRank();
+    rank = CalculateRank();
     if(rank != mat.m) {
         if(andFindBad) {
             FindWhichToRemoveToFixJacobian(g, bad);

@@ -10,10 +10,22 @@
 #ifndef __SLVS_H
 #define __SLVS_H
 
+#ifndef __DSC_H
+    typedef unsigned long DWORD;
+    typedef unsigned char BYTE;
+#endif
+
+
+#ifdef WIN32
 #ifdef EXPORT_DLL
 #define DLL __declspec( dllexport ) 
 #else
 #define DLL __declspec( dllimport ) 
+#endif
+#else
+// I think on Windows that would be __declspec(dll{ex,im}port), but
+// in Linux we don't need it.
+#define DLL
 #endif
 
 #ifdef __cplusplus

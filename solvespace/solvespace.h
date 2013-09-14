@@ -7,6 +7,15 @@
 #ifndef __SOLVESPACE_H
 #define __SOLVESPACE_H
 
+#ifndef WIN32
+// include <math.h> first, so it isn't confused by the stuff we declare in here
+#   include <math.h>
+#endif
+
+#ifndef WIN32
+#   include <stdio.h>
+#endif
+
 // Debugging functions
 #define oops() do { dbp("oops at line %d, file %s", __LINE__, __FILE__); \
                     if(0) *(char *)0 = 1; exit(-1); } while(0)
@@ -17,7 +26,9 @@
 #define max(x, y) ((x) > (y) ? (x) : (y))
 #endif
 
-#define isnan(x) (((x) != (x)) || (x > 1e11) || (x < -1e11))
+#ifndef isnan
+#   define isnan(x) (((x) != (x)) || (x > 1e11) || (x < -1e11))
+#endif
 
 inline int WRAP(int v, int n) {
     // Clamp it to the range [0, n)
@@ -51,19 +62,40 @@ inline double ffabs(double v) { return (v > 0) ? v : (-v); }
 
 #define isforname(c) (isalnum(c) || (c) == '_' || (c) == '-' || (c) == '#')
 
+#ifdef WIN32
 typedef unsigned __int64 QWORD;
 typedef signed __int64 SQWORD;
 typedef signed long SDWORD;
 typedef signed short SWORD;
+#else
+#include <stdint.h>
+typedef uint64_t QWORD;
+typedef int64_t SQWORD;
+typedef signed long SDWORD;
+typedef signed short SWORD;
+#endif
 
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
-#include <math.h>
-#include <windows.h> // required for GL stuff
-#include <gl/gl.h>
-#include <gl/glu.h>
+#ifdef WIN32
+#   include <math.h>
+#   include <windows.h> // required for GL stuff
+#   include <gl/gl.h>
+#   include <gl/glu.h>
+#endif
+
+#ifndef WIN32
+// fake some Windows stuff
+#define MAX_PATH 255
+//typedef enum { FALSE = 0, TRUE = -1 } BOOL;
+typedef bool BOOL;
+
+#define MemAlloc malloc
+
+#include <stdarg.h>
+#endif
 
 inline double Random(double vmax) {
     return (vmax*rand()) / RAND_MAX;
@@ -154,6 +186,12 @@ void dbp(char *str, ...);
     dbp("tri: (%.3f %.3f %.3f) (%.3f %.3f %.3f) (%.3f %.3f %.3f)", \
         CO((tri).a), CO((tri).b), CO((tri).c))
 
+#ifndef WIN32
+    // include <dsc.h> here to define DWORD
+    // (on WIN32 it will be included later)
+#   include "dsc.h"
+#endif
+
 void SetWindowTitle(char *str);
 void SetMousePointerToHand(bool yes);
 void DoMessageBox(char *str, int rows, int cols, BOOL error);
@@ -181,7 +219,9 @@ void vl(void); // debug function to validate heaps
 
 class Group;
 class SSurface;
-#include "dsc.h"
+#ifdef WIN32
+#   include "dsc.h"
+#endif
 #include "polygon.h"
 #include "srf/surface.h"
 
@@ -197,6 +237,7 @@ typedef IdList<Param,hParam> ParamList;
 #include "expr.h"
 
 
+#ifdef WIN32
 // Utility functions that are provided in the platform-independent code.
 void glxVertex3v(Vector u);
 void glxAxisAlignedQuad(double l, double r, double t, double b);
@@ -234,6 +275,7 @@ void glxBitmapCharQuad(char c, double x, double y);
 #define TEXTURE_DRAW_PIXELS     30
 #define TEXTURE_COLOR_PICKER_2D 40
 #define TEXTURE_COLOR_PICKER_1D 50
+#endif
 
 
 #define arraylen(x) (sizeof((x))/sizeof((x)[0]))
