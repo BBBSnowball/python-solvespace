@@ -92,8 +92,6 @@ typedef signed short SWORD;
 //typedef enum { FALSE = 0, TRUE = -1 } BOOL;
 typedef bool BOOL;
 
-#define MemAlloc malloc
-
 #include <stdarg.h>
 #endif
 
@@ -189,6 +187,7 @@ void dbp(char *str, ...);
 #ifndef WIN32
     // include <dsc.h> here to define DWORD
     // (on WIN32 it will be included later)
+    void *MemAlloc(int n);
 #   include "dsc.h"
 #endif
 

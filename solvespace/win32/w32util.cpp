@@ -126,6 +126,7 @@ void *AllocTemporary(int n) { return MemAlloc(n); }
 void FreeTemporary(void *p) { MemFree(p); }
 void FreeAllTemporary(void) {
     //TODO
+    printf("TODO: We should free all temps now\n");
 
     vl();
 }
