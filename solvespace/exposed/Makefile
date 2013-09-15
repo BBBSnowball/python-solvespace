@@ -30,11 +30,11 @@ LIBS =
 CC = gcc
 CXX = g++
 
-all: cdemo
+all: cdemo _slvs.so slvs.py
 	LD_LIBRARY_PATH=. ./cdemo
 
 clean:
-	rm -f obj/* cdemo libslvs.so
+	rm -f obj/* cdemo libslvs.so _slvs.so slvs.py slvs_wrap.cxx
 
 .SECONDEXPANSION:
 
@@ -52,3 +52,12 @@ $(W32OBJS): ../win32/$$(basename $$(notdir $$@)).cpp $(HEADERS)
 
 $(LIBOBJS): $$(basename $$(notdir $$@)).cpp $(HEADERS)
 	$(CXX) $(CFLAGS_SHARED) $(DEFINES) -c -o$@ $<
+
+slvs.py slvs_wrap.cxx: slvs.i
+	swig -c++ -python slvs.i
+
+$(OBJDIR)/slvs_wrap.o: slvs_wrap.cxx
+	$(CXX) $(CFLAGS_SHARED) -Wno-unused-but-set-variable -c -o$@ $< `python2-config --cflags`
+
+_slvs.so: $(SSOBJS) $(LIBOBJS) $(W32OBJS) $(OBJDIR)/slvs_wrap.o
+	$(CXX) -shared -fPIC -o$@ $(SSOBJS) $(LIBOBJS) $(W32OBJS) $(OBJDIR)/slvs_wrap.o $(LIBS) `python2-config --ldflags`
