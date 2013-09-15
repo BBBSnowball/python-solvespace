@@ -9,7 +9,7 @@
 
 from slvs import *
 
-sys = Slvs_System()
+sys = System()
 
 def printf(fmt, *args):
     print fmt % args
@@ -23,14 +23,14 @@ def Example3d():
     g = 1;
 
     # A point, initially at (x y z) = (10 10 10)
-    sys.add_param(Slvs_MakeParam(1, g, 10.0));
-    sys.add_param(Slvs_MakeParam(2, g, 10.0));
-    sys.add_param(Slvs_MakeParam(3, g, 10.0));
+    sys.add_param(10.0)
+    sys.add_param(10.0)
+    sys.add_param(10.0)
     sys.add_entity(Slvs_MakePoint3d(101, g, 1, 2, 3));
     # and a second point at (20 20 20)
-    sys.add_param(Slvs_MakeParam(4, g, 20.0));
-    sys.add_param(Slvs_MakeParam(5, g, 20.0));
-    sys.add_param(Slvs_MakeParam(6, g, 20.0));
+    sys.add_param(20.0)
+    sys.add_param(20.0)
+    sys.add_param(20.0)
     sys.add_entity(Slvs_MakePoint3d(102, g, 4, 5, 6));
     # and a line segment connecting them.
     sys.add_entity(Slvs_MakeLineSegment(200, g, 

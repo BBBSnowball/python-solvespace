@@ -33,6 +33,9 @@ CXX = g++
 all: cdemo _slvs.so slvs.py
 	LD_LIBRARY_PATH=. ./cdemo
 
+test-python: _slvs.so slvs.py
+	python test.py
+
 clean:
 	rm -f obj/* cdemo libslvs.so _slvs.so slvs.py slvs_wrap.cxx
 
