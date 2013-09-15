@@ -4,7 +4,7 @@ python-solvespace
 Geometry constraint solver of SolveSpace as a Python library
 
 The solver has been written by Jonathan Westhues. You can find more information
-[on his page][solvespace-lib]. It is part of [SOLVESPACE][solvespace-cad], which
+[on his page][solvespace-lib]. It is part of [SolveSpace][solvespace-cad], which
 is a parametric 3d CAD program.
 
 My contributions:
@@ -24,7 +24,7 @@ constraint solver for [OpenSCAD][openscad].
 Build and install
 -----------------
 
-The repository contains all the code for SOLVESPACE. This is necessary because the
+The repository contains all the code for SolveSpace. This is necessary because the
 library referes to files in its parent directory. The library is in `solvespace/exposed`.
 You can run `make` to build the library. You should put the files `slvs.py` and `_slvs.so`
 into a Python library directory or next to your application, so Python can find them.
@@ -64,3 +64,17 @@ TODO
 * Improve memory management: fake a private heap (see `solvespace/win32/w32util.cpp`)
 * Clean up the code: remove all files that the library doesn't need
 * Make it build on all (or most) platforms
+
+License
+-------
+
+SolveSpace:<br>
+"SolveSpace is distributed under the **GPLv3**, which permits most use in free software but
+generally forbids linking the library with proprietary software. If you're interested in
+the latter, then SolveSpace is also available for licensing under typical commercial terms;
+please contact me for details."
+(see [here](http://solvespace.com/library.pl))
+
+You can use my parts of the code under GPLv3, as well. If the author of SolveSpace permits
+use under another license (probably commercial), you may use my parts of the code under the
+3-clause BSD license. In that case, you should add appropriate copyright headers to all files.
