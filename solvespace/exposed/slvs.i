@@ -144,7 +144,7 @@ public:
 };
 
 #define throw_entity_constructor \
-    throw(wrong_system_exception, invalid_state_exception, invalid_value_exception)
+    throw(wrong_system_exception, invalid_state_exception, invalid_value_exception, not_enough_space_exception)
 
 class Point3d : public Entity {
 public:
@@ -212,31 +212,41 @@ public:
 class System : public Slvs_System {
 public:
     System(int param_space, int entity_space, int constraint_space,
-                int failed_space);
+                int failed_space)
+        throw(out_of_memory_exception);
 
-    System(int space);
+    System(int space)
+        throw(out_of_memory_exception);
 
-    System();
+    System()
+        throw(out_of_memory_exception);
 
     ~System();
 
     Slvs_hGroup default_group;
 
-    void add_param(Slvs_Param p) throw(invalid_value_exception);
+    void add_param(Slvs_Param p)
+        throw(not_enough_space_exception, invalid_value_exception);
 
-    Param add_param(Slvs_hGroup group, double val) throw(invalid_value_exception);
+    Param add_param(Slvs_hGroup group, double val)
+        throw(not_enough_space_exception, invalid_value_exception);
 
-    Param add_param(double val) throw(invalid_value_exception);
+    Param add_param(double val)
+        throw(not_enough_space_exception, invalid_value_exception);
 
-    void add_entity(Slvs_Entity p) throw(invalid_value_exception);
+    void add_entity(Slvs_Entity p)
+        throw(not_enough_space_exception, invalid_value_exception);
 
-    Entity add_entity_with_next_handle(Slvs_Entity p) throw(invalid_value_exception);
+    Entity add_entity_with_next_handle(Slvs_Entity p)
+        throw(not_enough_space_exception, invalid_value_exception);
 
-    void add_constraint(Slvs_Constraint p) throw(invalid_value_exception);
+    void add_constraint(Slvs_Constraint p)
+        throw(not_enough_space_exception, invalid_value_exception);
 
     Slvs_Param *get_param(int i);
 
-    void set_dragged(int i, Slvs_hParam param);
+    void set_dragged(int i, Slvs_hParam param)
+        throw(invalid_value_exception);
 
     int solve(Slvs_hGroup hg = 0);
 

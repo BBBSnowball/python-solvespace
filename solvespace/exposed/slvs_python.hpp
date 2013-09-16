@@ -306,15 +306,15 @@ public:
     Slvs_hGroup default_group;
 
     void add_param(Slvs_Param p) {
-        if (params >= param_space) {
-            printf("too many params\n");
-            exit(-1);
-        }
+        if (params >= param_space)
+            throw not_enough_space_exception(
+                "too many params");
         if (ENABLE_SAFETY) {
             for (int i=0;i<params;i++)
                 if (param[i].h == p.h)
                     throw invalid_value_exception(
-                        "duplicate value for param handle: %lu", p.h);
+                        "duplicate value for param handle: %lu",
+                        p.h);
         }
         param[params++] = p;
     }
@@ -399,10 +399,9 @@ private:
 public:
 
     void add_entity(Slvs_Entity p) {
-        if (entities >= entity_space) {
-            printf("too many entities\n");
-            exit(-1);
-        }
+        if (entities >= entity_space)
+            throw not_enough_space_exception(
+                "too many entities");
         if (ENABLE_SAFETY) {
             check_unique_entity_handle(p.h);
             check_group(p.group);
@@ -431,10 +430,9 @@ public:
     }
 
     void add_constraint(Slvs_Constraint p) {
-        if (constraints >= constraint_space) {
-            printf("too many constraints\n");
-            exit(-1);
-        }
+        if (constraints >= constraint_space)
+            throw not_enough_space_exception(
+                "too many constraints");
         if (ENABLE_SAFETY) {
             check_unique_constraint_handle(p.h);
             check_group(p.group);
@@ -461,7 +459,8 @@ public:
         if (i >= 0 && i < 4)
             dragged[i] = param;
         else {
-            printf("Cannot set dragged[%d]\n", i);
+            throw invalid_value_exception(
+                "Cannot set dragged[%d]\n", i);
         }
     }
 
