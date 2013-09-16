@@ -72,41 +72,152 @@ public:
             throw invalid_state_exception("param is virtual");
         return h;
     }
+    int handle() { return GetHandle(); }
 
     double GetValue() ;
     void SetValue(double v);
+    System* GetSystem() {
+        if (!sys)
+            throw invalid_state_exception("system is NULL");
+        return sys;
+    }
 };
+
+#define USE_DEFAULT_GROUP 0
 
 class Entity {
 protected:
     friend class System;
+    friend class Workplane;
 
     System* sys;
     Slvs_hEntity h;
 
     Slvs_Entity* entity();
     Param param(int i) { return Param(sys, entity()->param[i]); }
+    Entity fromHandle(Slvs_hEntity handle) { return Entity(sys, handle); }
+
+    Entity() : sys(NULL), h(0) { }
+    void init(const Entity& e) {
+        sys = e.sys;
+        h   = e.h;
+    }
+    // uses add_entity_with_next_handle
+    void init(System* sys, Slvs_Entity e);
 public:
     Entity(System* system, Slvs_hEntity handle)
         : sys(system),   h(handle)   { }
     Entity(const Entity& e)
         : sys(e.sys), h(e.h) { }
+
+    int GetHandle() { return h; }
+    int handle() { return GetHandle(); }
+
+    System* system() { return sys; }
 };
 
-#define ENTITY(name) struct name : public Entity { \
-        friend class System; \
-        private: name(const Entity& e) : Entity(e) { } \
-    };
 class Point3d : public Entity {
     friend class System;
-    Point3d(const Entity& e) : Entity(e) { }
 public:
+    Point3d(const Entity& e) : Entity(e) { }
+    Point3d(Param x, Param y, Param z,
+            System* system = NULL, Slvs_hGroup group = 0) {
+        if (!system)
+            system = x.GetSystem();
+        x.prepareFor(system, group);
+        y.prepareFor(system, group);
+        z.prepareFor(system, group);
+        init(system,
+            Slvs_MakePoint3d(0, group, x.handle(), y.handle(), z.handle()));
+    }
+
     Param x() { return param(0); }
     Param y() { return param(1); }
     Param z() { return param(2); }
 };
-ENTITY(Point2d);
-ENTITY(Workplane);
+
+class Normal3d : public Entity {
+public:
+    Normal3d(const Entity& e) : Entity(e) { }
+    Normal3d(Param qw, Param qx, Param qy, Param qz,
+            System* system = NULL,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        if (!system)
+            system = qw.GetSystem();
+        qw.prepareFor(system, group);
+        qx.prepareFor(system, group);
+        qy.prepareFor(system, group);
+        qz.prepareFor(system, group);
+        init(system,
+            Slvs_MakeNormal3d(0, group, qw.handle(), qx.handle(), qy.handle(), qz.handle()));
+    }
+
+    Param qw() { return param(0); }
+    Param qx() { return param(1); }
+    Param qy() { return param(2); }
+    Param qz() { return param(3); }
+};
+
+class Workplane : public Entity {
+    friend class System;
+    Workplane() : Entity(NULL, SLVS_FREE_IN_3D) { }
+public:
+    Workplane(const Entity& e) : Entity(e) { }
+    Workplane(Point3d origin, Normal3d normal,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        Slvs_Entity e = Slvs_MakeWorkplane(0, group, origin.handle(), normal.handle());
+        init(origin.system(), e);
+    }
+
+    static Workplane FreeIn3D;
+
+    static Workplane forEntity(Entity* e) {
+        return Workplane(Entity(e->sys, e->entity()->wrkpl));
+    }
+
+    Point3d  origin() { return Point3d( fromHandle(entity()->point[0])); }
+    Normal3d normal() { return Normal3d(fromHandle(entity()->normal  )); }
+};
+
+Workplane Workplane::FreeIn3D = Workplane();
+
+class Point2d : public Entity {
+    friend class System;
+    Point2d(const Entity& e) : Entity(e) { }
+public:
+    Point2d(Workplane workplane, Param u,
+            Param v, System* system = NULL, Slvs_hGroup group = 0) {
+        if (!system)
+            system = workplane.system();
+        u.prepareFor(system, group);
+        v.prepareFor(system, group);
+        init(system,
+            Slvs_MakePoint2d(0, group, workplane.handle(),
+                u.handle(), v.handle()));
+    }
+
+    Param u() { return param(0); }
+    Param v() { return param(1); }
+    Workplane workplane() { return Workplane::forEntity(this); }
+};
+
+class LineSegment3d : public Entity {
+public:
+    LineSegment3d(Point3d a, Point3d b, Workplane wrkpl = Workplane::FreeIn3D,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        Slvs_Entity e = Slvs_MakeLineSegment(0, group, wrkpl.handle(), a.handle(), b.handle());
+        init(a.system(), e);
+    }
+};
+
+class LineSegment2d : public Entity {
+public:
+    LineSegment2d(Workplane wrkpl, Point2d a, Point2d b,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        Slvs_Entity e = Slvs_MakeLineSegment(0, group, wrkpl.handle(), a.handle(), b.handle());
+        init(wrkpl.system(), e);
+    }
+};
 
 class System : public Slvs_System {
     int param_space, entity_space, constraint_space, failed_space;
@@ -164,6 +275,8 @@ public:
     }
 
     Param add_param(Slvs_hGroup group, double val) {
+        if (group == USE_DEFAULT_GROUP)
+            group = default_group;
         // index starts with 0, but handle starts with 1
         int h = params+1;
         add_param(Slvs_MakeParam(h, group, val));
@@ -184,6 +297,8 @@ public:
 
     Entity add_entity_with_next_handle(Slvs_Entity p) {
         p.h = entities+1;
+        if (p.group == USE_DEFAULT_GROUP)
+            p.group = default_group;
         add_entity(p);
         return Entity(this, p.h);
     }
@@ -245,6 +360,8 @@ public:
 };
 
 void Param::prepareFor(System* system, Slvs_hGroup group) {
+    if (!system)
+        throw invalid_state_exception("system is NULL!");
     if (!sys) {
         *this = system->add_param(group, this->init_value);
     } else {
@@ -254,7 +371,6 @@ void Param::prepareFor(System* system, Slvs_hGroup group) {
         }
     }
 }
-
 
 double Param::GetValue() {
     if (sys) {
@@ -281,6 +397,10 @@ Slvs_Entity* Entity::entity() {
     } else {
         throw invalid_state_exception("invalid system");
     }
+}
+
+void Entity::init(System* sys, Slvs_Entity e) {
+    init(sys->add_entity_with_next_handle(e));
 }
 
 #endif  // defined SLVS_PYTHON_

@@ -112,17 +112,69 @@ public:
 
 class Entity {
 private: Entity();
+public:  int GetHandle();
+    %pythoncode %{
+        __swig_getmethods__["handle"] = GetHandle
+        if _newclass: x = property(GetHandle)
+    %}
 };
 
-#define ENTITY(name) struct name : public Entity { private: name(); };
 class Point3d : public Entity {
 public:
+    Point3d(Param x, Param y, Param z,
+            System* system = NULL,
+            Slvs_hGroup group = USE_DEFAULT_GROUP);
+
     Param x();
     Param y();
     Param z();
 };
-ENTITY(Point2d);
-ENTITY(Workplane);
+
+class Normal3d : public Entity {
+public:
+    Normal3d(Param qw, Param qx, Param qy, Param qz,
+            System* system = NULL,
+            Slvs_hGroup group = USE_DEFAULT_GROUP);
+
+    Param qw();
+    Param qx();
+    Param qy();
+    Param qz();
+};
+
+class Workplane : public Entity {
+public:
+    static Workplane FreeIn3D;
+
+    Workplane(Point3d origin, Normal3d normal,
+            Slvs_hGroup group = USE_DEFAULT_GROUP);
+
+    Point3d  origin();
+    Normal3d normal();
+};
+
+class Point2d : public Entity {
+public:
+    Point2d(Workplane workplane, Param u,
+            Param v, System* system = NULL,
+            Slvs_hGroup group = USE_DEFAULT_GROUP);
+
+    Param u();
+    Param v();
+    Workplane workplane();
+};
+
+class LineSegment3d : public Entity {
+public:
+    LineSegment3d(Point3d a, Point3d b, Workplane wrkpl = Workplane::FreeIn3D,
+            Slvs_hGroup group = USE_DEFAULT_GROUP);
+};
+
+class LineSegment2d : public Entity {
+public:
+    LineSegment2d(Workplane wrkpl, Point2d a, Point2d b,
+            Slvs_hGroup group = USE_DEFAULT_GROUP);
+};
 
 class System : public Slvs_System {
 public:
