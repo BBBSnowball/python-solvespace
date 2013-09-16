@@ -7,233 +7,305 @@
 # Ported to Python by Benjamin Koch
 #-----------------------------------------------------------------------------
 
+#from slvs import System, Param
 from slvs import *
-
-sys = System()
+import unittest
 
 def printf(fmt, *args):
     print fmt % args
 
-#-----------------------------------------------------------------------------
-# An example of a constraint in 3d. We create a single group, with some
-# entities and constraints.
-#-----------------------------------------------------------------------------
-def Example3d():
-    # This will contain a single group, which will arbitrarily number 1.
-    g = 1;
+class TestSlvs(unittest.TestCase):
+    def floatEqual(self, a, b):
+        return abs(a-b) < 0.001
 
-    # A point, initially at (x y z) = (10 10 10)
-    sys.add_param(10.0)
-    sys.add_param(10.0)
-    sys.add_param(10.0)
-    sys.add_entity(Slvs_MakePoint3d(101, g, 1, 2, 3));
-    # and a second point at (20 20 20)
-    sys.add_param(20.0)
-    sys.add_param(20.0)
-    sys.add_param(20.0)
-    sys.add_entity(Slvs_MakePoint3d(102, g, 4, 5, 6));
-    # and a line segment connecting them.
-    sys.add_entity(Slvs_MakeLineSegment(200, g, 
-                                        SLVS_FREE_IN_3D, 101, 102));
+    def assertFloatEqual(self, a, b):
+        if self.floatEqual(a, b):
+            self.assertTrue(True)
+        else:
+            self.assertEqual(a, b)
 
-    # The distance between the points should be 30.0 units.
-    sys.add_constraint(Slvs_MakeConstraint(
-                                            1, g,
-                                            SLVS_C_PT_PT_DISTANCE,
-                                            SLVS_FREE_IN_3D,
-                                            30.0,
-                                            101, 102, 0, 0));
+    def assertFloatListEqual(self, xs, ys):
+        if len(xs) != len(ys):
+            self.assertListEqual(xs, ys)
+        else:
+            for i,a,b in zip(range(len(xs)), xs, ys):
+                if not self.floatEqual(a, b):
+                    self.assertEqual(a, b, "in list at index %d" % i)
+            self.assertTrue(True)
 
-    # Let's tell the solver to keep the second point as close to constant
-    # as possible, instead moving the first point.
-    sys.set_dragged(0, 4);
-    sys.set_dragged(1, 5);
-    sys.set_dragged(2, 6);
+    def test_param(self):
+        sys = System()
 
-    # Now that we have written our system, we solve.
-    Slvs_Solve(sys, g);
+        p1 = Param(17.3)
+        self.assertFloatEqual(p1.value, 17.3)
 
-    if (sys.result == SLVS_RESULT_OKAY):
-        print ("okay; now at (%.3f %.3f %.3f)\n" +
-               "             (%.3f %.3f %.3f)") % (
-                sys.get_param(0).val, sys.get_param(1).val, sys.get_param(2).val,
-                sys.get_param(3).val, sys.get_param(4).val, sys.get_param(5).val)
-        print "%d DOF" % sys.dof
-    else:
-        print "solve failed"
+        p2 = Param(1.0)
+        p3 = Param(0.0)
+        e = sys.add_point3d(p1, p2, p3)
 
-#-----------------------------------------------------------------------------
-# An example of a constraint in 2d. In our first group, we create a workplane
-# along the reference frame's xy plane. In a second group, we create some
-# entities in that group and dimension them.
-#-----------------------------------------------------------------------------
-def Example2d():
-    #int g;
-    #double qw, qx, qy, qz;
+        self.assertFloatEqual(p1.value, 17.3)
+        self.assertFloatEqual(p2.value,  1.0)
+        self.assertFloatEqual(p3.value,  0.0)
 
-    g = 1;
-    # First, we create our workplane. Its origin corresponds to the origin
-    # of our base frame (x y z) = (0 0 0)
-    sys.add_param(Slvs_MakeParam(1, g, 0.0));
-    sys.add_param(Slvs_MakeParam(2, g, 0.0));
-    sys.add_param(Slvs_MakeParam(3, g, 0.0));
-    sys.add_entity(Slvs_MakePoint3d(101, g, 1, 2, 3));
-    # and it is parallel to the xy plane, so it has basis vectors (1 0 0)
-    # and (0 1 0).
-    #Slvs_MakeQuaternion(1, 0, 0,
-    #                    0, 1, 0, &qw, &qx, &qy, &qz);
-    qw, qx, qy, qz = Slvs_MakeQuaternion(1, 0, 0,
-                                         0, 1, 0)
-    sys.add_param(Slvs_MakeParam(4, g, qw));
-    sys.add_param(Slvs_MakeParam(5, g, qx));
-    sys.add_param(Slvs_MakeParam(6, g, qy));
-    sys.add_param(Slvs_MakeParam(7, g, qz));
-    sys.add_entity(Slvs_MakeNormal3d(102, g, 4, 5, 6, 7));
+        p1 = e.x()
+        p2 = e.y()
+        p3 = e.z()
 
-    sys.add_entity(Slvs_MakeWorkplane(200, g, 101, 102));
+        self.assertFloatEqual(p1.value, 17.3)
+        self.assertFloatEqual(p2.value,  1.0)
+        self.assertFloatEqual(p3.value,  0.0)
 
-    # Now create a second group. We'll solve group 2, while leaving group 1
-    # constant; so the workplane that we've created will be locked down,
-    # and the solver can't move it.
-    g = 2;
-    # These points are represented by their coordinates (u v) within the
-    # workplane, so they need only two parameters each.
-    sys.add_param(Slvs_MakeParam(11, g, 10.0));
-    sys.add_param(Slvs_MakeParam(12, g, 20.0));
-    sys.add_entity(Slvs_MakePoint2d(301, g, 200, 11, 12));
+        self.assertEqual(p1.handle, 1)
+        self.assertEqual(p2.handle, 2)
+        self.assertEqual(p3.handle, 3)
 
-    sys.add_param(Slvs_MakeParam(13, g, 20.0));
-    sys.add_param(Slvs_MakeParam(14, g, 10.0));
-    sys.add_entity(Slvs_MakePoint2d(302, g, 200, 13, 14));
+    #-----------------------------------------------------------------------------
+    # An example of a constraint in 3d. We create a single group, with some
+    # entities and constraints.
+    #-----------------------------------------------------------------------------
+    def test_example3d(self):
+        sys = System()
 
-    # And we create a line segment with those endpoints.
-    sys.add_entity(Slvs_MakeLineSegment(400, g, 
-                                        200, 301, 302));
+        # This will contain a single group, which will arbitrarily number 1.
+        g = 1;
 
-    # Now three more points.
-    sys.add_param(Slvs_MakeParam(15, g, 100.0));
-    sys.add_param(Slvs_MakeParam(16, g, 120.0));
-    sys.add_entity(Slvs_MakePoint2d(303, g, 200, 15, 16));
+        if False:
+            # A point, initially at (x y z) = (10 10 10)
+            a = sys.add_param(10.0)
+            b = sys.add_param(10.0)
+            c = sys.add_param(10.0)
+            #p1 = sys.add_point3d(Param(10.0), Param(10.0), Param(10.0))
+            p1 = sys.add_point3d(a, b, c)
+            # and a second point at (20 20 20)
+            sys.add_param(20.0)
+            sys.add_param(20.0)
+            sys.add_param(20.0)
+            sys.add_entity(Slvs_MakePoint3d(102, g, 4, 5, 6));
+        else:
+            sys.add_param(Slvs_MakeParam(1, g, 10.0));
+            sys.add_param(Slvs_MakeParam(2, g, 10.0));
+            sys.add_param(Slvs_MakeParam(3, g, 10.0));
+            sys.add_param(Slvs_MakeParam(4, g, 20.0));
+            sys.add_param(Slvs_MakeParam(5, g, 20.0));
+            sys.add_param(Slvs_MakeParam(6, g, 20.0));
+            sys.add_entity(Slvs_MakePoint3d(101, g, 1, 2, 3));
+            sys.add_entity(Slvs_MakePoint3d(102, g, 4, 5, 6));
+        # and a line segment connecting them.
+        sys.add_entity(Slvs_MakeLineSegment(200, g, 
+                                            SLVS_FREE_IN_3D, 101, 102));
 
-    sys.add_param(Slvs_MakeParam(17, g, 120.0));
-    sys.add_param(Slvs_MakeParam(18, g, 110.0));
-    sys.add_entity(Slvs_MakePoint2d(304, g, 200, 17, 18));
-
-    sys.add_param(Slvs_MakeParam(19, g, 115.0));
-    sys.add_param(Slvs_MakeParam(20, g, 115.0));
-    sys.add_entity(Slvs_MakePoint2d(305, g, 200, 19, 20));
-
-    # And arc, centered at point 303, starting at point 304, ending at
-    # point 305.
-    sys.add_entity(Slvs_MakeArcOfCircle(401, g, 200, 102,
-                                    303, 304, 305));
-
-    # Now one more point, and a distance
-    sys.add_param(Slvs_MakeParam(21, g, 200.0));
-    sys.add_param(Slvs_MakeParam(22, g, 200.0));
-    sys.add_entity(Slvs_MakePoint2d(306, g, 200, 21, 22));
-
-    sys.add_param(Slvs_MakeParam(23, g, 30.0));
-    sys.add_entity(Slvs_MakeDistance(307, g, 200, 23));
-
-    # And a complete circle, centered at point 306 with radius equal to
-    # distance 307. The normal is 102, the same as our workplane.
-    sys.add_entity(Slvs_MakeCircle(402, g, 200,
-                                    306, 102, 307));
-
-
-    # The length of our line segment is 30.0 units.
-    sys.add_constraint(Slvs_MakeConstraint(
-                                            1, g,
-                                            SLVS_C_PT_PT_DISTANCE,
-                                            200,
-                                            30.0,
-                                            301, 302, 0, 0));
-
-    # And the distance from our line segment to the origin is 10.0 units.
-    sys.add_constraint(Slvs_MakeConstraint(
-                                            2, g,
-                                            SLVS_C_PT_LINE_DISTANCE,
-                                            200,
-                                            10.0,
-                                            101, 0, 400, 0));
-    # And the line segment is vertical.
-    sys.add_constraint(Slvs_MakeConstraint(
-                                            3, g,
-                                            SLVS_C_VERTICAL,
-                                            200,
-                                            0.0,
-                                            0, 0, 400, 0));
-    # And the distance from one endpoint to the origin is 15.0 units.
-    sys.add_constraint(Slvs_MakeConstraint(
-                                            4, g,
-                                            SLVS_C_PT_PT_DISTANCE,
-                                            200,
-                                            15.0,
-                                            301, 101, 0, 0));
-
-    if False:
-        # And same for the other endpoint; so if you add this constraint then
-        # the sketch is overconstrained and will signal an error.
+        # The distance between the points should be 30.0 units.
         sys.add_constraint(Slvs_MakeConstraint(
-                                                5, g,
+                                                1, g,
+                                                SLVS_C_PT_PT_DISTANCE,
+                                                SLVS_FREE_IN_3D,
+                                                30.0,
+                                                101, 102, 0, 0));
+
+        # Let's tell the solver to keep the second point as close to constant
+        # as possible, instead moving the first point.
+        sys.set_dragged(0, 4);
+        sys.set_dragged(1, 5);
+        sys.set_dragged(2, 6);
+
+        # Now that we have written our system, we solve.
+        Slvs_Solve(sys, g);
+
+        if (sys.result == SLVS_RESULT_OKAY):
+            print ("okay; now at (%.3f %.3f %.3f)\n" +
+                   "             (%.3f %.3f %.3f)") % (
+                    sys.get_param(0).val, sys.get_param(1).val, sys.get_param(2).val,
+                    sys.get_param(3).val, sys.get_param(4).val, sys.get_param(5).val)
+            print "%d DOF" % sys.dof
+
+            self.assertFloatEqual(sys.get_param(0).val,  2.698)
+            self.assertFloatEqual(sys.get_param(1).val,  2.698)
+            self.assertFloatEqual(sys.get_param(2).val,  2.698)
+            self.assertFloatEqual(sys.get_param(3).val, 20.018)
+            self.assertFloatEqual(sys.get_param(4).val, 20.018)
+            self.assertFloatEqual(sys.get_param(5).val, 20.018)
+            self.assertEqual(sys.dof, 5)
+        else:
+            self.assertFail("solve failed")
+
+    #-----------------------------------------------------------------------------
+    # An example of a constraint in 2d. In our first group, we create a workplane
+    # along the reference frame's xy plane. In a second group, we create some
+    # entities in that group and dimension them.
+    #-----------------------------------------------------------------------------
+    def test_example2d(self):
+        sys = System()
+
+        g = 1;
+        # First, we create our workplane. Its origin corresponds to the origin
+        # of our base frame (x y z) = (0 0 0)
+        sys.add_param(Slvs_MakeParam(1, g, 0.0));
+        sys.add_param(Slvs_MakeParam(2, g, 0.0));
+        sys.add_param(Slvs_MakeParam(3, g, 0.0));
+        sys.add_entity(Slvs_MakePoint3d(101, g, 1, 2, 3));
+        # and it is parallel to the xy plane, so it has basis vectors (1 0 0)
+        # and (0 1 0).
+        #Slvs_MakeQuaternion(1, 0, 0,
+        #                    0, 1, 0, &qw, &qx, &qy, &qz);
+        qw, qx, qy, qz = Slvs_MakeQuaternion(1, 0, 0,
+                                             0, 1, 0)
+        sys.add_param(Slvs_MakeParam(4, g, qw));
+        sys.add_param(Slvs_MakeParam(5, g, qx));
+        sys.add_param(Slvs_MakeParam(6, g, qy));
+        sys.add_param(Slvs_MakeParam(7, g, qz));
+        sys.add_entity(Slvs_MakeNormal3d(102, g, 4, 5, 6, 7));
+
+        sys.add_entity(Slvs_MakeWorkplane(200, g, 101, 102));
+
+        # Now create a second group. We'll solve group 2, while leaving group 1
+        # constant; so the workplane that we've created will be locked down,
+        # and the solver can't move it.
+        g = 2;
+        # These points are represented by their coordinates (u v) within the
+        # workplane, so they need only two parameters each.
+        sys.add_param(Slvs_MakeParam(11, g, 10.0));
+        sys.add_param(Slvs_MakeParam(12, g, 20.0));
+        sys.add_entity(Slvs_MakePoint2d(301, g, 200, 11, 12));
+
+        sys.add_param(Slvs_MakeParam(13, g, 20.0));
+        sys.add_param(Slvs_MakeParam(14, g, 10.0));
+        sys.add_entity(Slvs_MakePoint2d(302, g, 200, 13, 14));
+
+        # And we create a line segment with those endpoints.
+        sys.add_entity(Slvs_MakeLineSegment(400, g, 
+                                            200, 301, 302));
+
+        # Now three more points.
+        sys.add_param(Slvs_MakeParam(15, g, 100.0));
+        sys.add_param(Slvs_MakeParam(16, g, 120.0));
+        sys.add_entity(Slvs_MakePoint2d(303, g, 200, 15, 16));
+
+        sys.add_param(Slvs_MakeParam(17, g, 120.0));
+        sys.add_param(Slvs_MakeParam(18, g, 110.0));
+        sys.add_entity(Slvs_MakePoint2d(304, g, 200, 17, 18));
+
+        sys.add_param(Slvs_MakeParam(19, g, 115.0));
+        sys.add_param(Slvs_MakeParam(20, g, 115.0));
+        sys.add_entity(Slvs_MakePoint2d(305, g, 200, 19, 20));
+
+        # And arc, centered at point 303, starting at point 304, ending at
+        # point 305.
+        sys.add_entity(Slvs_MakeArcOfCircle(401, g, 200, 102,
+                                        303, 304, 305));
+
+        # Now one more point, and a distance
+        sys.add_param(Slvs_MakeParam(21, g, 200.0));
+        sys.add_param(Slvs_MakeParam(22, g, 200.0));
+        sys.add_entity(Slvs_MakePoint2d(306, g, 200, 21, 22));
+
+        sys.add_param(Slvs_MakeParam(23, g, 30.0));
+        sys.add_entity(Slvs_MakeDistance(307, g, 200, 23));
+
+        # And a complete circle, centered at point 306 with radius equal to
+        # distance 307. The normal is 102, the same as our workplane.
+        sys.add_entity(Slvs_MakeCircle(402, g, 200,
+                                        306, 102, 307));
+
+
+        # The length of our line segment is 30.0 units.
+        sys.add_constraint(Slvs_MakeConstraint(
+                                                1, g,
                                                 SLVS_C_PT_PT_DISTANCE,
                                                 200,
-                                                18.0,
-                                                302, 101, 0, 0));
+                                                30.0,
+                                                301, 302, 0, 0));
 
-    # The arc and the circle have equal radius.
-    sys.add_constraint(Slvs_MakeConstraint(
-                                            6, g,
-                                            SLVS_C_EQUAL_RADIUS,
-                                            200,
-                                            0.0,
-                                            0, 0, 401, 402));
-    # The arc has radius 17.0 units.
-    sys.add_constraint(Slvs_MakeConstraint(
-                                            7, g,
-                                            SLVS_C_DIAMETER,
-                                            200,
-                                            17.0*2,
-                                            0, 0, 401, 0));
+        # And the distance from our line segment to the origin is 10.0 units.
+        sys.add_constraint(Slvs_MakeConstraint(
+                                                2, g,
+                                                SLVS_C_PT_LINE_DISTANCE,
+                                                200,
+                                                10.0,
+                                                101, 0, 400, 0));
+        # And the line segment is vertical.
+        sys.add_constraint(Slvs_MakeConstraint(
+                                                3, g,
+                                                SLVS_C_VERTICAL,
+                                                200,
+                                                0.0,
+                                                0, 0, 400, 0));
+        # And the distance from one endpoint to the origin is 15.0 units.
+        sys.add_constraint(Slvs_MakeConstraint(
+                                                4, g,
+                                                SLVS_C_PT_PT_DISTANCE,
+                                                200,
+                                                15.0,
+                                                301, 101, 0, 0));
 
-    # If the solver fails, then ask it to report which constraints caused
-    # the problem.
-    sys.calculateFaileds = 1;
+        if False:
+            # And same for the other endpoint; so if you add this constraint then
+            # the sketch is overconstrained and will signal an error.
+            sys.add_constraint(Slvs_MakeConstraint(
+                                                    5, g,
+                                                    SLVS_C_PT_PT_DISTANCE,
+                                                    200,
+                                                    18.0,
+                                                    302, 101, 0, 0));
 
-    # And solve.
-    Slvs_Solve(sys, g);
+        # The arc and the circle have equal radius.
+        sys.add_constraint(Slvs_MakeConstraint(
+                                                6, g,
+                                                SLVS_C_EQUAL_RADIUS,
+                                                200,
+                                                0.0,
+                                                0, 0, 401, 402));
+        # The arc has radius 17.0 units.
+        sys.add_constraint(Slvs_MakeConstraint(
+                                                7, g,
+                                                SLVS_C_DIAMETER,
+                                                200,
+                                                17.0*2,
+                                                0, 0, 401, 0));
 
-    if(sys.result == SLVS_RESULT_OKAY):
-        printf("solved okay");
-        printf("line from (%.3f %.3f) to (%.3f %.3f)",
-                sys.get_param(7).val, sys.get_param(8).val,
-                sys.get_param(9).val, sys.get_param(10).val);
+        # If the solver fails, then ask it to report which constraints caused
+        # the problem.
+        sys.calculateFaileds = 1;
 
-        printf("arc center (%.3f %.3f) start (%.3f %.3f) finish (%.3f %.3f)",
-                sys.get_param(11).val, sys.get_param(12).val,
-                sys.get_param(13).val, sys.get_param(14).val,
-                sys.get_param(15).val, sys.get_param(16).val);
+        # And solve.
+        Slvs_Solve(sys, g);
 
-        printf("circle center (%.3f %.3f) radius %.3f",
-                sys.get_param(17).val, sys.get_param(18).val,
-                sys.get_param(19).val);
-        printf("%d DOF", sys.dof);
-    else:
-        printf("solve failed: problematic constraints are:");
-        for i in range(sys.faileds):
-            printf(" %lu", sys.failed[i]);
-        printf("");
-        if (sys.result == SLVS_RESULT_INCONSISTENT):
-            printf("system inconsistent");
+        if(sys.result == SLVS_RESULT_OKAY):
+            printf("solved okay");
+            printf("line from (%.3f %.3f) to (%.3f %.3f)",
+                    sys.get_param(7).val, sys.get_param(8).val,
+                    sys.get_param(9).val, sys.get_param(10).val);
+            self.assertFloatEqual(sys.get_param( 7).val,  10.000)
+            self.assertFloatEqual(sys.get_param( 8).val,  11.180)
+            self.assertFloatEqual(sys.get_param( 9).val,  10.000)
+            self.assertFloatEqual(sys.get_param(10).val, -18.820)
+
+            printf("arc center (%.3f %.3f) start (%.3f %.3f) finish (%.3f %.3f)",
+                    sys.get_param(11).val, sys.get_param(12).val,
+                    sys.get_param(13).val, sys.get_param(14).val,
+                    sys.get_param(15).val, sys.get_param(16).val);
+            self.assertFloatListEqual(
+                map(lambda i: sys.get_param(i).val, range(11, 17)),
+                [101.114, 119.042, 116.477, 111.762, 117.409, 114.197])
+
+            printf("circle center (%.3f %.3f) radius %.3f",
+                    sys.get_param(17).val, sys.get_param(18).val,
+                    sys.get_param(19).val);
+            printf("%d DOF", sys.dof);
+            self.assertFloatEqual(sys.get_param(17).val, 200.000)
+            self.assertFloatEqual(sys.get_param(18).val, 200.000)
+            self.assertFloatEqual(sys.get_param(19).val,  17.000)
+
+            self.assertEqual(sys.dof, 6)
         else:
-            printf("system nonconvergent");
+            printf("solve failed: problematic constraints are:");
+            for i in range(sys.faileds):
+                printf(" %lu", sys.failed[i]);
+            printf("");
+            if (sys.result == SLVS_RESULT_INCONSISTENT):
+                printf("system inconsistent");
+            else:
+                printf("system nonconvergent");
+            self.assertFail("solve failed")
 
-def main():
-    Example2d();
-
-    sys.params = sys.constraints = sys.entities = 0;
-
-    Example3d();
-
-main()
+if __name__ == '__main__':
+    unittest.main()

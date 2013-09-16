@@ -56,10 +56,10 @@ $(W32OBJS): ../win32/$$(basename $$(notdir $$@)).cpp $(HEADERS)
 $(LIBOBJS): $$(basename $$(notdir $$@)).cpp $(HEADERS)
 	$(CXX) $(CFLAGS_SHARED) $(DEFINES) -c -o$@ $<
 
-slvs.py slvs_wrap.cxx: slvs.i
+slvs.py slvs_wrap.cxx: slvs.i slvs_python.hpp
 	swig -c++ -python slvs.i
 
-$(OBJDIR)/slvs_wrap.o: slvs_wrap.cxx
+$(OBJDIR)/slvs_wrap.o: slvs_wrap.cxx slvs_python.hpp
 	$(CXX) $(CFLAGS_SHARED) -Wno-unused-but-set-variable -c -o$@ $< `python2-config --cflags`
 
 _slvs.so: $(SSOBJS) $(LIBOBJS) $(W32OBJS) $(OBJDIR)/slvs_wrap.o
