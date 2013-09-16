@@ -95,27 +95,37 @@ public:
     // parameter should be created and used.
     Param(double value);
 
-    int GetHandle();
+    Slvs_hParam GetHandle();
+    Slvs_hGroup GetGroup();
     double GetValue();
     void SetValue(double v);
 
     // see http://stackoverflow.com/a/4750081
     %pythoncode %{
         __swig_getmethods__["handle"] = GetHandle
-        if _newclass: x = property(GetHandle)
+        if _newclass: handle = property(GetHandle)
+
+        __swig_getmethods__["group"] = GetHandle
+        if _newclass: group = property(GetGroup)
 
         __swig_getmethods__["value"] = GetValue
         __swig_setmethods__["value"] = SetValue
-        if _newclass: x = property(GetValue, SetValue)
+        if _newclass: value = property(GetValue, SetValue)
     %}
 };
 
 class Entity {
 private: Entity();
-public:  int GetHandle();
+public:
+    Slvs_hEntity GetHandle();
+    Slvs_hGroup  GetGroup();
+
     %pythoncode %{
         __swig_getmethods__["handle"] = GetHandle
-        if _newclass: x = property(GetHandle)
+        if _newclass: handle = property(GetHandle)
+
+        __swig_getmethods__["group"] = GetHandle
+        if _newclass: group = property(GetGroup)
     %}
 };
 

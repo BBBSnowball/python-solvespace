@@ -4,10 +4,16 @@
 #include <string>
 #include <exception>
 
+#include <stdio.h>
+#include <stdarg.h>
+
 class str_exception : public std::exception {
+protected:
     std::string _what;
-public:
+
     explicit str_exception(const std::string& what) : _what(what) { }
+    explicit str_exception() { }
+public:
     virtual ~str_exception() throw() {}
 
     virtual const char* what() const throw() {
@@ -39,6 +45,27 @@ public:
         : str_exception(what) { }
 };
 
+class invalid_value_exception : public str_exception {
+public:
+    explicit invalid_value_exception(const std::string& what)
+        : str_exception(what) { }
+    explicit invalid_value_exception(const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+
+        char* buf;
+        if (vasprintf(&buf, fmt, args) >= 0) {
+            _what = std::string(buf);
+            free(buf);
+        } else {
+            // some error occurred, so we do the best we can
+            _what = std::string(fmt);
+        }
+
+        va_end(args);
+    }
+};
+
 //NOTE This header doesn't follow usual C++ guidelines (e.g. seperate
 //     declaration and implementation) because it is only used for the
 //     Python library.
@@ -67,12 +94,12 @@ public:
     void prepareFor(System* system, Slvs_hGroup group);
 
 
-    int GetHandle() {
+    Slvs_hParam GetHandle() {
         if (sys == NULL)
             throw invalid_state_exception("param is virtual");
         return h;
     }
-    int handle() { return GetHandle(); }
+    Slvs_hParam handle() { return GetHandle(); }
 
     double GetValue() ;
     void SetValue(double v);
@@ -81,6 +108,8 @@ public:
             throw invalid_state_exception("system is NULL");
         return sys;
     }
+
+    Slvs_hGroup GetGroup();
 };
 
 #define USE_DEFAULT_GROUP 0
@@ -110,10 +139,12 @@ public:
     Entity(const Entity& e)
         : sys(e.sys), h(e.h) { }
 
-    int GetHandle() { return h; }
-    int handle() { return GetHandle(); }
+    Slvs_hEntity GetHandle() { return h; }
+    Slvs_hEntity handle() { return GetHandle(); }
 
     System* system() { return sys; }
+
+    Slvs_hGroup GetGroup() { return entity()->group; }
 };
 
 class Point3d : public Entity {
@@ -121,7 +152,7 @@ class Point3d : public Entity {
 public:
     Point3d(const Entity& e) : Entity(e) { }
     Point3d(Param x, Param y, Param z,
-            System* system = NULL, Slvs_hGroup group = 0) {
+            System* system = NULL, Slvs_hGroup group = USE_DEFAULT_GROUP) {
         if (!system)
             system = x.GetSystem();
         x.prepareFor(system, group);
@@ -186,7 +217,7 @@ class Point2d : public Entity {
     Point2d(const Entity& e) : Entity(e) { }
 public:
     Point2d(Workplane workplane, Param u,
-            Param v, System* system = NULL, Slvs_hGroup group = 0) {
+            Param v, System* system = NULL, Slvs_hGroup group = USE_DEFAULT_GROUP) {
         if (!system)
             system = workplane.system();
         u.prepareFor(system, group);
@@ -218,6 +249,8 @@ public:
         init(wrkpl.system(), e);
     }
 };
+
+#define ENABLE_SAFETY 1
 
 class System : public Slvs_System {
     int param_space, entity_space, constraint_space, failed_space;
@@ -271,6 +304,12 @@ public:
             printf("too many params\n");
             exit(-1);
         }
+        if (ENABLE_SAFETY) {
+            for (int i=0;i<params;i++)
+                if (param[i].h == p.h)
+                    throw invalid_value_exception(
+                        "duplicate value for param handle: %lu", p.h);
+        }
         param[params++] = p;
     }
 
@@ -287,10 +326,73 @@ public:
         return add_param(default_group, val);
     }
 
+private:
+    void check_unique_entity_handle(Slvs_hEntity h) {
+        for (int i=0;i<entities;i++)
+            if (entity[i].h == h)
+                throw invalid_value_exception(
+                    "duplicate value for entity handle: %lu", h);
+    }
+    void check_group(Slvs_hGroup group) {
+        if (group < 1)
+            throw invalid_value_exception("invalid group: %d", group);
+    }
+    void check_type(int type) { /* TODO */ }
+    int check_entity_handle(Slvs_hEntity h) {
+        for (int i=0;i<entities;i++)
+            if (entity[i].h == h)
+                return entity[i].type;
+        throw invalid_value_exception("invalid entity handle: %lu", h);
+    }
+    void check_entity_handle_workplane(Slvs_hEntity h) {
+        int type = check_entity_handle(h);
+        if (type != SLVS_E_WORKPLANE)
+            throw invalid_value_exception("entity of handle %lu must be a workplane", h);
+    }
+    void check_entity_handle_point(Slvs_hEntity h) {
+        int type = check_entity_handle(h);
+        if (type != SLVS_E_POINT_IN_2D && type != SLVS_E_POINT_IN_3D)
+            throw invalid_value_exception("entity of handle %lu must be a point", h);
+    }
+    void check_entity_handle_normal(Slvs_hEntity h) {
+        int type = check_entity_handle(h);
+        if (type != SLVS_E_NORMAL_IN_2D && type != SLVS_E_NORMAL_IN_3D)
+            throw invalid_value_exception("entity of handle %lu must be a normal", h);
+    }
+    void check_entity_handle_distance(Slvs_hEntity h) {
+        int type = check_entity_handle(h);
+        if (type != SLVS_E_DISTANCE)
+            throw invalid_value_exception("entity of handle %lu must be a distance", h);
+    }
+    void check_param_handle(Slvs_hParam h) {
+        for (int i=0;i<params;i++)
+            if (param[i].h == h)
+                return;
+        throw invalid_value_exception(
+            "invalid param handle (not found in system): %lu", h);
+    }
+public:
+
     void add_entity(Slvs_Entity p) {
         if (entities >= entity_space) {
             printf("too many entities\n");
             exit(-1);
+        }
+        if (ENABLE_SAFETY) {
+            check_unique_entity_handle(p.h);
+            check_group(p.group);
+            check_type(p.type);
+            check_entity_handle_workplane(p.wrkpl);
+            check_entity_handle_point(p.point[0]);
+            check_entity_handle_point(p.point[1]);
+            check_entity_handle_point(p.point[2]);
+            check_entity_handle_point(p.point[3]);
+            check_entity_handle_normal(p.normal);
+            check_entity_handle_distance(p.distance);
+            check_param_handle(p.param[0]);
+            check_param_handle(p.param[1]);
+            check_param_handle(p.param[2]);
+            check_param_handle(p.param[3]);
         }
         entity[entities++] = p;
     }
@@ -337,7 +439,7 @@ public:
     // entities
 
     Point2d add_point2d(Workplane workplane, Param u,
-            Param v, Slvs_hGroup group = 0) {
+            Param v, Slvs_hGroup group = USE_DEFAULT_GROUP) {
         if (group == 0)
             group = default_group;
         u.prepareFor(this, group);
@@ -347,7 +449,7 @@ public:
         return Point2d(e);
     }
 
-    Point3d add_point3d(Param x, Param y, Param z, Slvs_hGroup group = 0) {
+    Point3d add_point3d(Param x, Param y, Param z, Slvs_hGroup group = USE_DEFAULT_GROUP) {
         if (group == 0)
             group = default_group;
         x.prepareFor(this, group);
@@ -387,6 +489,14 @@ void Param::SetValue(double v) {
         sys->param[h-1].val = v;
     } else
         init_value = v;
+}
+
+Slvs_hGroup Param::GetGroup() {
+    if (!sys)
+        throw invalid_state_exception("virtual param doesn't have a group");
+    if (sys->param[h-1].h != h)
+        throw invalid_state_exception("param not found at index (handle-1)");
+    return sys->param[h-1].group;
 }
 
 Slvs_Entity* Entity::entity() {
