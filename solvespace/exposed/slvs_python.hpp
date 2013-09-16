@@ -91,10 +91,11 @@ public:
 
     // Makes sure the param belongs to the system or is a dummy param
     // (only a value), in which case it will create a real one
-    void prepareFor(System* system, Slvs_hGroup group);
+    void prepareFor(System* system, Slvs_hGroup group)
+        throw(wrong_system_exception, invalid_state_exception);
 
 
-    Slvs_hParam GetHandle() {
+    Slvs_hParam GetHandle() throw(invalid_state_exception) {
         if (sys == NULL)
             throw invalid_state_exception("param is virtual");
         return h;
@@ -147,12 +148,16 @@ public:
     Slvs_hGroup GetGroup() { return entity()->group; }
 };
 
+#define throw_entity_constructor \
+    throw(wrong_system_exception, invalid_state_exception, invalid_value_exception)
+
 class Point3d : public Entity {
     friend class System;
 public:
     Point3d(const Entity& e) : Entity(e) { }
     Point3d(Param x, Param y, Param z,
-            System* system = NULL, Slvs_hGroup group = USE_DEFAULT_GROUP) {
+            System* system = NULL, Slvs_hGroup group = USE_DEFAULT_GROUP)
+            throw_entity_constructor {
         if (!system)
             system = x.GetSystem();
         x.prepareFor(system, group);
@@ -172,7 +177,8 @@ public:
     Normal3d(const Entity& e) : Entity(e) { }
     Normal3d(Param qw, Param qx, Param qy, Param qz,
             System* system = NULL,
-            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+            throw(wrong_system_exception, invalid_state_exception) {
         if (!system)
             system = qw.GetSystem();
         qw.prepareFor(system, group);
@@ -183,10 +189,10 @@ public:
             Slvs_MakeNormal3d(0, group, qw.handle(), qx.handle(), qy.handle(), qz.handle()));
     }
 
-    Param qw() { return param(0); }
-    Param qx() { return param(1); }
-    Param qy() { return param(2); }
-    Param qz() { return param(3); }
+    Param qw() throw(invalid_state_exception) { return param(0); }
+    Param qx() throw(invalid_state_exception) { return param(1); }
+    Param qy() throw(invalid_state_exception) { return param(2); }
+    Param qz() throw(invalid_state_exception) { return param(3); }
 };
 
 class Workplane : public Entity {
@@ -333,38 +339,57 @@ private:
                 throw invalid_value_exception(
                     "duplicate value for entity handle: %lu", h);
     }
+    void check_unique_constraint_handle(Slvs_hConstraint h) {
+        for (int i=0;i<constraints;i++)
+            if (constraint[i].h == h)
+                throw invalid_value_exception(
+                    "duplicate value for constraint handle: %lu", h);
+    }
     void check_group(Slvs_hGroup group) {
         if (group < 1)
             throw invalid_value_exception("invalid group: %d", group);
     }
-    void check_type(int type) { /* TODO */ }
-    int check_entity_handle(Slvs_hEntity h) {
+    void check_entity_type(int type)     { /* TODO */ }
+    void check_constraint_type(int type) { /* TODO */ }
+    int check_entity_handle(Slvs_hEntity h, bool allow_none = false) {
+        if (allow_none && !h)
+            return 0;
         for (int i=0;i<entities;i++)
             if (entity[i].h == h)
                 return entity[i].type;
         throw invalid_value_exception("invalid entity handle: %lu", h);
     }
-    void check_entity_handle_workplane(Slvs_hEntity h) {
+    void check_entity_handle_workplane(Slvs_hEntity h, bool allow_none) {
+        if (allow_none && !h)
+            return;
         int type = check_entity_handle(h);
         if (type != SLVS_E_WORKPLANE)
             throw invalid_value_exception("entity of handle %lu must be a workplane", h);
     }
-    void check_entity_handle_point(Slvs_hEntity h) {
+    void check_entity_handle_point(Slvs_hEntity h, bool allow_none) {
+        if (allow_none && !h)
+            return;
         int type = check_entity_handle(h);
         if (type != SLVS_E_POINT_IN_2D && type != SLVS_E_POINT_IN_3D)
             throw invalid_value_exception("entity of handle %lu must be a point", h);
     }
-    void check_entity_handle_normal(Slvs_hEntity h) {
+    void check_entity_handle_normal(Slvs_hEntity h, bool allow_none) {
+        if (allow_none && !h)
+            return;
         int type = check_entity_handle(h);
         if (type != SLVS_E_NORMAL_IN_2D && type != SLVS_E_NORMAL_IN_3D)
             throw invalid_value_exception("entity of handle %lu must be a normal", h);
     }
-    void check_entity_handle_distance(Slvs_hEntity h) {
+    void check_entity_handle_distance(Slvs_hEntity h, bool allow_none) {
+        if (allow_none && !h)
+            return;
         int type = check_entity_handle(h);
         if (type != SLVS_E_DISTANCE)
             throw invalid_value_exception("entity of handle %lu must be a distance", h);
     }
-    void check_param_handle(Slvs_hParam h) {
+    void check_param_handle(Slvs_hParam h, bool allow_none) {
+        if (allow_none && !h)
+            return;
         for (int i=0;i<params;i++)
             if (param[i].h == h)
                 return;
@@ -381,18 +406,18 @@ public:
         if (ENABLE_SAFETY) {
             check_unique_entity_handle(p.h);
             check_group(p.group);
-            check_type(p.type);
-            check_entity_handle_workplane(p.wrkpl);
-            check_entity_handle_point(p.point[0]);
-            check_entity_handle_point(p.point[1]);
-            check_entity_handle_point(p.point[2]);
-            check_entity_handle_point(p.point[3]);
-            check_entity_handle_normal(p.normal);
-            check_entity_handle_distance(p.distance);
-            check_param_handle(p.param[0]);
-            check_param_handle(p.param[1]);
-            check_param_handle(p.param[2]);
-            check_param_handle(p.param[3]);
+            check_entity_type(p.type);
+            check_entity_handle_workplane(p.wrkpl, true);
+            check_entity_handle_point(p.point[0], true);
+            check_entity_handle_point(p.point[1], true);
+            check_entity_handle_point(p.point[2], true);
+            check_entity_handle_point(p.point[3], true);
+            check_entity_handle_normal(p.normal, true);
+            check_entity_handle_distance(p.distance, true);
+            check_param_handle(p.param[0], true);
+            check_param_handle(p.param[1], true);
+            check_param_handle(p.param[2], true);
+            check_param_handle(p.param[3], true);
         }
         entity[entities++] = p;
     }
@@ -409,6 +434,18 @@ public:
         if (constraints >= constraint_space) {
             printf("too many constraints\n");
             exit(-1);
+        }
+        if (ENABLE_SAFETY) {
+            check_unique_constraint_handle(p.h);
+            check_group(p.group);
+            check_constraint_type(p.type);
+            check_entity_handle_workplane(p.wrkpl, true);
+            check_entity_handle_point(p.ptA, true);
+            check_entity_handle_point(p.ptB, true);
+            check_entity_handle(p.entityA, true);
+            check_entity_handle(p.entityB, true);
+            check_entity_handle(p.entityC, true);
+            check_entity_handle(p.entityD, true);
         }
         constraint[constraints++] = p;
     }
@@ -461,7 +498,8 @@ public:
     }
 };
 
-void Param::prepareFor(System* system, Slvs_hGroup group) {
+void Param::prepareFor(System* system, Slvs_hGroup group)
+        throw(wrong_system_exception, invalid_state_exception) {
     if (!system)
         throw invalid_state_exception("system is NULL!");
     if (!sys) {

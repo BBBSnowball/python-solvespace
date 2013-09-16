@@ -149,10 +149,11 @@ class TestSlvs(unittest.TestCase):
         # Now create a second group. We'll solve group 2, while leaving group 1
         # constant; so the workplane that we've created will be locked down,
         # and the solver can't move it.
+        g = 2
         sys.default_group = 2
         # These points are represented by their coordinates (u v) within the
         # workplane, so they need only two parameters each.
-        sys.add_param(Slvs_MakeParam(11, g, 10.0));
+        p11 = sys.add_param(Slvs_MakeParam(11, g, 10.0));
         sys.add_param(Slvs_MakeParam(12, g, 20.0));
         #p301 = Point2d(wplane, Param(10), Param(20))
         sys.add_entity(Slvs_MakePoint2d(301, g, wplane.handle, 11, 12));
@@ -167,7 +168,7 @@ class TestSlvs(unittest.TestCase):
         # And we create a line segment with those endpoints.
         #line = LineSegment2d(wplane, p301, p302)
         sys.add_entity(Slvs_MakeLineSegment(400, g,
-                                            200, 301, 302));
+                                            wplane.handle, 301, 302));
         line = H(400)
 
 

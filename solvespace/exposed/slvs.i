@@ -69,23 +69,37 @@
 %include "exception.i"
 
 %typemap(throws) out_of_memory_exception {
-    SWIG_exception(SWIG_MemoryError, const_cast<char*>(e.what()));
+    SWIG_exception(SWIG_MemoryError, const_cast<char*>($1.what()));
 }
 
 %typemap(throws) not_enough_space_exception {
-    SWIG_exception(SWIG_RuntimeError, const_cast<char*>(e.what()));
+    SWIG_exception(SWIG_RuntimeError, const_cast<char*>($1.what()));
 }
 
 %typemap(throws) wrong_system_exception {
-    SWIG_exception(SWIG_RuntimeError, const_cast<char*>(e.what()));
+    SWIG_exception(SWIG_RuntimeError, const_cast<char*>($1.what()));
 }
 
 %typemap(throws) invalid_state_exception {
-    SWIG_exception(SWIG_RuntimeError, const_cast<char*>(e.what()));
+    SWIG_exception(SWIG_RuntimeError, const_cast<char*>($1.what()));
 }
 
-%ignore Param::prepareFor;
-%ignore Entity::Entity;
+%typemap(throws) invalid_value_exception {
+    SWIG_exception(SWIG_RuntimeError, const_cast<char*>($1.what()));
+}
+
+/*
+%except(python) {
+    try {
+        $function
+    } catch (invalid_value_exception& e) {
+        SWIG_exception(SWIG_RuntimeError, const_cast<char*>(e.what()));
+    }
+}
+*/
+
+// %ignore Param::prepareFor;
+// %ignore Entity::Entity;
 
 // %include "slvs_python.hpp"
 
@@ -95,10 +109,10 @@ public:
     // parameter should be created and used.
     Param(double value);
 
-    Slvs_hParam GetHandle();
-    Slvs_hGroup GetGroup();
-    double GetValue();
-    void SetValue(double v);
+    Slvs_hParam GetHandle() throw(invalid_state_exception);
+    Slvs_hGroup GetGroup()  throw(invalid_state_exception);
+    double GetValue()       throw(invalid_state_exception);
+    void SetValue(double v) throw(invalid_state_exception);
 
     // see http://stackoverflow.com/a/4750081
     %pythoncode %{
@@ -118,7 +132,7 @@ class Entity {
 private: Entity();
 public:
     Slvs_hEntity GetHandle();
-    Slvs_hGroup  GetGroup();
+    Slvs_hGroup  GetGroup()  throw(invalid_state_exception);
 
     %pythoncode %{
         __swig_getmethods__["handle"] = GetHandle
@@ -129,27 +143,32 @@ public:
     %}
 };
 
+#define throw_entity_constructor \
+    throw(wrong_system_exception, invalid_state_exception, invalid_value_exception)
+
 class Point3d : public Entity {
 public:
     Point3d(Param x, Param y, Param z,
             System* system = NULL,
-            Slvs_hGroup group = USE_DEFAULT_GROUP);
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
 
-    Param x();
-    Param y();
-    Param z();
+    Param x() throw(invalid_state_exception);
+    Param y() throw(invalid_state_exception);
+    Param z() throw(invalid_state_exception);
 };
 
 class Normal3d : public Entity {
 public:
     Normal3d(Param qw, Param qx, Param qy, Param qz,
             System* system = NULL,
-            Slvs_hGroup group = USE_DEFAULT_GROUP);
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
 
-    Param qw();
-    Param qx();
-    Param qy();
-    Param qz();
+    Param qw() throw(invalid_state_exception);
+    Param qx() throw(invalid_state_exception);
+    Param qy() throw(invalid_state_exception);
+    Param qz() throw(invalid_state_exception);
 };
 
 class Workplane : public Entity {
@@ -157,17 +176,19 @@ public:
     static Workplane FreeIn3D;
 
     Workplane(Point3d origin, Normal3d normal,
-            Slvs_hGroup group = USE_DEFAULT_GROUP);
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
 
-    Point3d  origin();
-    Normal3d normal();
+    Point3d  origin() throw(invalid_state_exception);
+    Normal3d normal() throw(invalid_state_exception);
 };
 
 class Point2d : public Entity {
 public:
     Point2d(Workplane workplane, Param u,
             Param v, System* system = NULL,
-            Slvs_hGroup group = USE_DEFAULT_GROUP);
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
 
     Param u();
     Param v();
@@ -177,13 +198,15 @@ public:
 class LineSegment3d : public Entity {
 public:
     LineSegment3d(Point3d a, Point3d b, Workplane wrkpl = Workplane::FreeIn3D,
-            Slvs_hGroup group = USE_DEFAULT_GROUP);
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
 };
 
 class LineSegment2d : public Entity {
 public:
     LineSegment2d(Workplane wrkpl, Point2d a, Point2d b,
-            Slvs_hGroup group = USE_DEFAULT_GROUP);
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
 };
 
 class System : public Slvs_System {
@@ -199,17 +222,17 @@ public:
 
     Slvs_hGroup default_group;
 
-    void add_param(Slvs_Param p);
+    void add_param(Slvs_Param p) throw(invalid_value_exception);
 
-    Param add_param(Slvs_hGroup group, double val);
+    Param add_param(Slvs_hGroup group, double val) throw(invalid_value_exception);
 
-    Param add_param(double val);
+    Param add_param(double val) throw(invalid_value_exception);
 
-    void add_entity(Slvs_Entity p);
+    void add_entity(Slvs_Entity p) throw(invalid_value_exception);
 
-    Entity add_entity_with_next_handle(Slvs_Entity p);
+    Entity add_entity_with_next_handle(Slvs_Entity p) throw(invalid_value_exception);
 
-    void add_constraint(Slvs_Constraint p);
+    void add_constraint(Slvs_Constraint p) throw(invalid_value_exception);
 
     Slvs_Param *get_param(int i);
 
@@ -221,7 +244,10 @@ public:
     // entities
 
     Point2d add_point2d(Workplane workplane, Param u,
-            Param v, Slvs_hGroup group = 0);
+            Param v, Slvs_hGroup group = 0)
+        throw_entity_constructor;
 
-    Point3d add_point3d(Param x, Param y, Param z, Slvs_hGroup group = 0);
+    Point3d add_point3d(Param x, Param y, Param z,
+            Slvs_hGroup group = 0)
+        throw_entity_constructor;
 };
