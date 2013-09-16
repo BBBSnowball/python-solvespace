@@ -146,7 +146,12 @@ public:
 #define throw_entity_constructor \
     throw(wrong_system_exception, invalid_state_exception, invalid_value_exception, not_enough_space_exception)
 
-class Point3d : public Entity {
+class Point : public Entity {
+private:
+    Point();
+};
+
+class Point3d : public Point {
 public:
     Point3d(Param x, Param y, Param z,
             System* system = NULL,
@@ -190,7 +195,7 @@ public:
     Normal3d normal() throw(invalid_state_exception);
 };
 
-class Point2d : public Entity {
+class Point2d : public Point {
 public:
     Point2d(Workplane workplane, Param u,
             Param v, System* system = NULL,
@@ -202,7 +207,12 @@ public:
     Workplane workplane() throw(invalid_state_exception);
 };
 
-class LineSegment3d : public Entity {
+class LineSegment : public Entity {
+private:
+    LineSegment();
+};
+
+class LineSegment3d : public LineSegment {
 public:
     LineSegment3d(Point3d a, Point3d b, Workplane wrkpl = Workplane::FreeIn3D,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
@@ -212,7 +222,7 @@ public:
     Point3d b() throw(invalid_state_exception);
 };
 
-class LineSegment2d : public Entity {
+class LineSegment2d : public LineSegment {
 public:
     LineSegment2d(Workplane wrkpl, Point2d a, Point2d b,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
@@ -258,6 +268,99 @@ public:
     Distance  distance()  throw(invalid_state_exception);
     Normal3d  normal()    throw(invalid_state_exception);
     Workplane workplane() throw(invalid_state_exception);
+};
+
+class Cubic : public Entity {
+public:
+    //TODO can we use it in 2d and 3d ?
+    //TODO implement getters
+    Cubic(Workplane wrkpl, Point2d pt0, Point2d pt1,
+            Point2d pt2, Point2d pt3,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+    Cubic(Point3d pt0, Point3d pt1,
+            Point3d pt2, Point3d pt3,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+};
+
+class Constraint {
+    Constraint();
+public:
+    Slvs_hEntity GetHandle();
+
+    System* system();
+
+    Slvs_hGroup GetGroup() throw(invalid_state_exception);
+
+    int type() throw(invalid_state_exception);
+    //Workplane workplane() throw(invalid_state_exception);
+
+    %pythoncode %{
+        __swig_getmethods__["handle"] = GetHandle
+        if _newclass: handle = property(GetHandle)
+
+        __swig_getmethods__["group"] = GetHandle
+        if _newclass: group = property(GetGroup)
+    %}
+
+    // process source of those functions like this:
+    // find:    ' \{(.|\n)*?\}'
+    // replace: '\n\t\tthrow_entity_constructor;'
+    // (Sublime Text 2)
+
+    static Constraint coincident(double value,
+            Point3d p1, Point3d p2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint coincident(double value,
+            Workplane wrkpl, Point p1, Point p2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint distance(double value,
+            Point3d p1, Point3d p2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint distance(double value,
+            Workplane wrkpl, Point p1, Point p2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint distance(double value,
+            Workplane wrkpl, Point3d p,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint distance(double value,
+            Workplane wrkpl, Point p, LineSegment line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint distance(double value,
+            Point3d p, LineSegment3d line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint on(double value,
+            Workplane wrkpl, Point3d p,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint on(double value,
+            Workplane wrkpl, Point p, LineSegment line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint on(double value,
+            Point3d p, LineSegment3d line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint on(double value,
+            Workplane wrkpl, Point p, Circle circle,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint horizontal(
+            Workplane wrkpl, LineSegment line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
+    static Constraint vertical(
+            Workplane wrkpl, LineSegment line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+		throw_entity_constructor;
 };
 
 class System : public Slvs_System {

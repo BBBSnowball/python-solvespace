@@ -88,15 +88,10 @@ class TestSlvs(unittest.TestCase):
         # and a second point at (20 20 20)
         p2 = Point3d(Param(20.0), Param(20.0), Param(20.0), sys)
         # and a line segment connecting them.
-        line = LineSegment3d(p1, p2)
+        LineSegment3d(p1, p2)
 
         # The distance between the points should be 30.0 units.
-        sys.add_constraint(Slvs_MakeConstraint(
-                                                1, g,
-                                                SLVS_C_PT_PT_DISTANCE,
-                                                SLVS_FREE_IN_3D,
-                                                30.0,
-                                                p1.handle, p2.handle, 0, 0));
+        Constraint.distance(30.0, p1, p2)
 
         # Let's tell the solver to keep the second point as close to constant
         # as possible, instead moving the first point.
@@ -188,35 +183,33 @@ class TestSlvs(unittest.TestCase):
 
 
         # The length of our line segment is 30.0 units.
-        sys.add_constraint(Slvs_MakeConstraint(
-                                                1, g,
-                                                SLVS_C_PT_PT_DISTANCE,
-                                                wplane.handle,
-                                                30.0,
-                                                p301.handle, p302.handle, 0, 0));
+        Constraint.distance(30.0, wplane, p301, p302)
 
         # And the distance from our line segment to the origin is 10.0 units.
-        sys.add_constraint(Slvs_MakeConstraint(
-                                                2, g,
-                                                SLVS_C_PT_LINE_DISTANCE,
-                                                wplane.handle,
-                                                10.0,
-                                                p1.handle, 0, line.handle, 0));
+        Constraint.distance(10.0, wplane, p1, line)
+        #sys.add_constraint(Slvs_MakeConstraint(
+        #                                        2, g,
+        #                                        SLVS_C_PT_LINE_DISTANCE,
+        #                                        wplane.handle,
+        #                                        10.0,
+        #                                        p1.handle, 0, line.handle, 0));
 
         # And the line segment is vertical.
-        sys.add_constraint(Slvs_MakeConstraint(
-                                                3, g,
-                                                SLVS_C_VERTICAL,
-                                                wplane.handle,
-                                                0.0,
-                                                0, 0, line.handle, 0));
+        #sys.add_constraint(Slvs_MakeConstraint(
+        #                                        3, g,
+        #                                        SLVS_C_VERTICAL,
+        #                                        wplane.handle,
+        #                                        0.0,
+        #                                        0, 0, line.handle, 0));
+        Constraint.vertical(wplane, line)
         # And the distance from one endpoint to the origin is 15.0 units.
-        sys.add_constraint(Slvs_MakeConstraint(
-                                                4, g,
-                                                SLVS_C_PT_PT_DISTANCE,
-                                                wplane.handle,
-                                                15.0,
-                                                p301.handle, p1.handle, 0, 0));
+        Constraint.distance(15.0, wplane, p301, p1)
+        #sys.add_constraint(Slvs_MakeConstraint(
+        #                                        4, g,
+        #                                        SLVS_C_PT_PT_DISTANCE,
+        #                                        wplane.handle,
+        #                                        15.0,
+        #                                        p301.handle, p1.handle, 0, 0));
 
         if False:
             # And same for the other endpoint; so if you add this constraint then

@@ -119,6 +119,7 @@ class Entity {
 protected:
     friend class System;
     friend class Workplane;
+    friend class Constraint;
 
     System* sys;
     Slvs_hEntity h;
@@ -151,10 +152,17 @@ public:
 #define throw_entity_constructor \
     throw(wrong_system_exception, invalid_state_exception, invalid_value_exception)
 
-class Point3d : public Entity {
+class Point : public Entity {
+protected:
+    Point() { }
+public:
+    explicit Point(const Entity& e) : Entity(e) { }
+};
+
+class Point3d : public Point {
     friend class System;
 public:
-    explicit Point3d(const Entity& e) : Entity(e) { }
+    explicit Point3d(const Entity& e) : Point(e) { }
     Point3d(Param x, Param y, Param z,
             System* system = NULL, Slvs_hGroup group = USE_DEFAULT_GROUP)
             throw_entity_constructor {
@@ -238,10 +246,10 @@ Workplane Normal3d::workplane(){
     return Workplane::forEntity(this);
 }
 
-class Point2d : public Entity {
+class Point2d : public Point {
     friend class System;
 public:
-    explicit Point2d(const Entity& e) : Entity(e) { }
+    explicit Point2d(const Entity& e) : Point(e) { }
     Point2d(Workplane workplane, Param u,
             Param v, System* system = NULL, Slvs_hGroup group = USE_DEFAULT_GROUP) {
         if (!system)
@@ -258,7 +266,14 @@ public:
     Workplane workplane() { return Workplane::forEntity(this); }
 };
 
-class LineSegment3d : public Entity {
+class LineSegment : public Entity {
+protected:
+    LineSegment() { }
+public:
+    explicit LineSegment(const Entity& e) : Entity(e) { }
+};
+
+class LineSegment3d : public LineSegment {
 public:
     LineSegment3d(Point3d a, Point3d b, Workplane wrkpl = Workplane::FreeIn3D,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
@@ -271,7 +286,7 @@ public:
     //Workplane workplane() { return Workplane::forEntity(this); }
 };
 
-class LineSegment2d : public Entity {
+class LineSegment2d : public LineSegment {
 public:
     LineSegment2d(Workplane wrkpl, Point2d a, Point2d b,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
@@ -346,6 +361,188 @@ public:
         Slvs_Entity e = Slvs_MakeCubic(0, group, SLVS_FREE_IN_3D, pt0.handle(), pt1.handle(), pt2.handle(), pt3.handle());
         init(pt0.system(), e);
     }
+};
+
+class Constraint {
+protected:
+    friend class System;
+
+    System* sys;
+    Slvs_hConstraint h;
+
+    Slvs_Constraint* constraint();
+
+    Constraint(System* system, Slvs_hConstraint handle)
+        : sys(system), h(handle) { }
+
+    // uses add_constraint_with_next_handle
+    static Constraint init(System* sys, Slvs_Constraint c);
+public:
+    Slvs_hEntity GetHandle() { return h; }
+    Slvs_hEntity handle() { return GetHandle(); }
+
+    System* system() { return sys; }
+
+    Slvs_hGroup GetGroup() { return constraint()->group; }
+
+    int         type()      { return constraint()->type;  }
+    //Workplane   workplane() { return Workplane(Entity::fromHandle(sys, constraint()->wrkpl)); }
+
+public:
+    static Constraint coincident(double value,
+            Point3d p1, Point3d p2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(p1.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_POINTS_COINCIDENT,
+            SLVS_FREE_IN_3D,
+            value,
+            p1.handle(), p2.handle(), 0, 0));
+    }
+    static Constraint coincident(double value,
+            Workplane wrkpl, Point p1, Point p2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(p1.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_POINTS_COINCIDENT,
+            wrkpl.handle(),
+            value,
+            p1.handle(), p2.handle(), 0, 0));
+    }
+    static Constraint distance(double value,
+            Point3d p1, Point3d p2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(p1.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_PT_DISTANCE,
+            SLVS_FREE_IN_3D,
+            value,
+            p1.handle(), p2.handle(), 0, 0));
+    }
+    static Constraint distance(double value,
+            Workplane wrkpl, Point p1, Point p2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_PT_DISTANCE,
+            wrkpl.handle(),
+            value,
+            p1.handle(), p2.handle(), 0, 0));
+    }
+    static Constraint distance(double value,
+            Workplane wrkpl, Point3d p,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_PLANE_DISTANCE,
+            wrkpl.handle(),
+            value,
+            p.handle(), 0, 0, 0));
+    }
+    static Constraint distance(double value,
+            Workplane wrkpl, Point p, LineSegment line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_LINE_DISTANCE,
+            wrkpl.handle(),
+            value,
+            p.handle(), 0, line.handle(), 0));
+    }
+    static Constraint distance(double value,
+            Point3d p, LineSegment3d line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(p.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_LINE_DISTANCE,
+            SLVS_FREE_IN_3D,
+            value,
+            p.handle(), 0, line.handle(), 0));
+    }
+// SLVS_C_PT_FACE_DISTANCE   
+    static Constraint on(double value,
+            Workplane wrkpl, Point3d p,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_IN_PLANE,
+            wrkpl.handle(),
+            value,
+            p.handle(), 0, 0, 0));
+    }
+    static Constraint on(double value,
+            Workplane wrkpl, Point p, LineSegment line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_ON_LINE,
+            wrkpl.handle(),
+            value,
+            p.handle(), 0, line.handle(), 0));
+    }
+    static Constraint on(double value,
+            Point3d p, LineSegment3d line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(p.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_ON_LINE,
+            SLVS_FREE_IN_3D,
+            value,
+            p.handle(), 0, line.handle(), 0));
+    }
+    static Constraint on(double value,
+            Workplane wrkpl, Point p, Circle circle,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_PT_ON_CIRCLE,
+            wrkpl.handle(),
+            value,
+            p.handle(), 0, circle.handle(), 0));
+    }
+// SLVS_C_PT_ON_FACE         
+// SLVS_C_EQUAL_LENGTH_LINES 
+// SLVS_C_LENGTH_RATIO       
+// SLVS_C_EQ_LEN_PT_LINE_D   
+// SLVS_C_EQ_PT_LN_DISTANCES 
+// SLVS_C_EQUAL_ANGLE        
+// SLVS_C_EQUAL_LINE_ARC_LEN 
+// SLVS_C_SYMMETRIC          
+// SLVS_C_SYMMETRIC_HORIZ    
+// SLVS_C_SYMMETRIC_VERT     
+// SLVS_C_SYMMETRIC_LINE     
+// SLVS_C_AT_MIDPOINT        
+    static Constraint horizontal(
+            Workplane wrkpl, LineSegment line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_HORIZONTAL,
+            wrkpl.handle(),
+            0,
+            0, 0, line.handle(), 0));
+    }
+    static Constraint vertical(
+            Workplane wrkpl, LineSegment line,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_VERTICAL,
+            wrkpl.handle(),
+            0,
+            0, 0, line.handle(), 0));
+    }
+// SLVS_C_DIAMETER           
+// SLVS_C_SAME_ORIENTATION   
+// SLVS_C_ANGLE              
+// SLVS_C_PARALLEL           
+// SLVS_C_PERPENDICULAR      
+// SLVS_C_ARC_LINE_TANGENT   
+// SLVS_C_CUBIC_LINE_TANGENT 
+// SLVS_C_EQUAL_RADIUS       
+// SLVS_C_PROJ_PT_DISTANCE   
+// SLVS_C_WHERE_DRAGGED      
+// SLVS_C_CURVE_CURVE_TANGENT
 };
 
 #define ENABLE_SAFETY 1
@@ -540,6 +737,14 @@ public:
         constraint[constraints++] = p;
     }
 
+    Constraint add_constraint_with_next_handle(Slvs_Constraint p) {
+        p.h = constraints+1;
+        if (p.group == USE_DEFAULT_GROUP)
+            p.group = default_group;
+        add_constraint(p);
+        return Constraint(this, p.h);
+    }
+
     Slvs_Param *get_param(int i) {
         if (i >= params || i < 0)
             return NULL;
@@ -640,6 +845,20 @@ Slvs_Entity* Entity::entity() {
 
 void Entity::init(System* sys, Slvs_Entity e) {
     init(sys->add_entity_with_next_handle(e));
+}
+
+Slvs_Constraint* Constraint::constraint() {
+    if (sys) {
+        if (sys->constraint[h-1].h != h)
+            throw invalid_state_exception("constraint not found at index (handle-1)");
+        return &sys->constraint[h-1];
+    } else {
+        throw invalid_state_exception("invalid system");
+    }
+}
+
+Constraint Constraint::init(System* sys, Slvs_Constraint c) {
+    return sys->add_constraint_with_next_handle(c);
 }
 
 #endif  // defined SLVS_PYTHON_
