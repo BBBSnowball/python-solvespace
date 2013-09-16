@@ -153,65 +153,38 @@ class TestSlvs(unittest.TestCase):
         sys.default_group = 2
         # These points are represented by their coordinates (u v) within the
         # workplane, so they need only two parameters each.
-        p11 = sys.add_param(Slvs_MakeParam(11, g, 10.0));
-        sys.add_param(Slvs_MakeParam(12, g, 20.0));
-        #p301 = Point2d(wplane, Param(10), Param(20))
-        sys.add_entity(Slvs_MakePoint2d(301, g, wplane.handle, 11, 12));
-        p301 = H(301)
+        p11 = sys.add_param(10.0)
+        p301 = Point2d(wplane, p11, Param(20))
+        self.assertEqual(p11.group, 2)
+        self.assertEqual(p301.group, 2)
+        self.assertEqual(p301.u().group, 2)
+        self.assertEqual(p301.v().group, 2)
 
-        sys.add_param(Slvs_MakeParam(13, g, 20.0));
-        sys.add_param(Slvs_MakeParam(14, g, 10.0));
-        #p302 = Point2d(wplane, Param(20), Param(10))
-        sys.add_entity(Slvs_MakePoint2d(302, g, wplane.handle, 13, 14));
-        p302 = H(302)
+        p302 = Point2d(wplane, Param(20), Param(10))
 
         # And we create a line segment with those endpoints.
-        #line = LineSegment2d(wplane, p301, p302)
-        sys.add_entity(Slvs_MakeLineSegment(400, g,
-                                            wplane.handle, 301, 302));
-        line = H(400)
-
+        line = LineSegment2d(wplane, p301, p302)
+        
 
         # Now three more points.
-        sys.add_param(Slvs_MakeParam(15, g, 100.0));
-        sys.add_param(Slvs_MakeParam(16, g, 120.0));
-        #p303 = Point2d(wplane, Param(100), Param(120))
-        sys.add_entity(Slvs_MakePoint2d(303, g, wplane.handle, 15, 16));
-        p303 = H(303)
+        p303 = Point2d(wplane, Param(100), Param(120))
 
-        sys.add_param(Slvs_MakeParam(17, g, 120.0));
-        sys.add_param(Slvs_MakeParam(18, g, 110.0));
-        #p304 = Point2d(wplane, Param(120), Param(110))
-        sys.add_entity(Slvs_MakePoint2d(304, g, wplane.handle, 17, 18));
-        p304 = H(304)
+        p304 = Point2d(wplane, Param(120), Param(110))
 
-        sys.add_param(Slvs_MakeParam(19, g, 115.0));
-        sys.add_param(Slvs_MakeParam(20, g, 115.0));
-        #p305 = Point2d(wplane, Param(115), Param(115))
-        sys.add_entity(Slvs_MakePoint2d(305, g, wplane.handle, 19, 20));
-        p305 = H(305)
+        p305 = Point2d(wplane, Param(115), Param(115))
 
         # And arc, centered at point 303, starting at point 304, ending at
         # point 305.
-        sys.add_entity(Slvs_MakeArcOfCircle(401, g, wplane.handle, wnormal.handle,
-                                        p303.handle, p304.handle, p305.handle));
+        p401 = ArcOfCircle(wplane, wnormal, p303, p304, p305);
 
         # Now one more point, and a distance
-        sys.add_param(Slvs_MakeParam(21, g, 200.0));
-        sys.add_param(Slvs_MakeParam(22, g, 200.0));
-        #p306 = Point2d(wplane, Param(200), Param(200))
-        sys.add_entity(Slvs_MakePoint2d(306, g, wplane.handle, 21, 22));
-        p306 = H(306)
+        p306 = Point2d(wplane, Param(200), Param(200))
 
-        #p23 = sys.add_param(30.0);
-        sys.add_param(Slvs_MakeParam(23, g, 30.0));
-        p23 = H(23)
-        sys.add_entity(Slvs_MakeDistance(307, g, wplane.handle, p23.handle));
+        p307 = Distance(wplane, Param(30.0))
 
         # And a complete circle, centered at point 306 with radius equal to
         # distance 307. The normal is 102, the same as our workplane.
-        sys.add_entity(Slvs_MakeCircle(402, g, wplane.handle,
-                                        p306.handle, wnormal.handle, 307));
+        p402 = Circle(wplane, wnormal, p306, p307);
 
 
         # The length of our line segment is 30.0 units.
@@ -261,14 +234,14 @@ class TestSlvs(unittest.TestCase):
                                                 SLVS_C_EQUAL_RADIUS,
                                                 wplane.handle,
                                                 0.0,
-                                                0, 0, 401, 402));
+                                                0, 0, p401.handle, p402.handle));
         # The arc has radius 17.0 units.
         sys.add_constraint(Slvs_MakeConstraint(
                                                 7, g,
                                                 SLVS_C_DIAMETER,
                                                 wplane.handle,
                                                 17.0*2,
-                                                0, 0, 401, 0));
+                                                0, 0, p401.handle, 0));
 
         # If the solver fails, then ask it to report which constraints caused
         # the problem.

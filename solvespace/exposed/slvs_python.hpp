@@ -154,7 +154,7 @@ public:
 class Point3d : public Entity {
     friend class System;
 public:
-    Point3d(const Entity& e) : Entity(e) { }
+    explicit Point3d(const Entity& e) : Entity(e) { }
     Point3d(Param x, Param y, Param z,
             System* system = NULL, Slvs_hGroup group = USE_DEFAULT_GROUP)
             throw_entity_constructor {
@@ -172,13 +172,15 @@ public:
     Param z() { return param(2); }
 };
 
+class Workplane;
+
 class Normal3d : public Entity {
 public:
-    Normal3d(const Entity& e) : Entity(e) { }
+    explicit Normal3d(const Entity& e) : Entity(e) { }
     Normal3d(Param qw, Param qx, Param qy, Param qz,
             System* system = NULL,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
-            throw(wrong_system_exception, invalid_state_exception) {
+            throw_entity_constructor {
         if (!system)
             system = qw.GetSystem();
         qw.prepareFor(system, group);
@@ -188,18 +190,25 @@ public:
         init(system,
             Slvs_MakeNormal3d(0, group, qw.handle(), qx.handle(), qy.handle(), qz.handle()));
     }
+    Normal3d(Workplane wrkpl, Slvs_hGroup group = USE_DEFAULT_GROUP);
 
-    Param qw() throw(invalid_state_exception) { return param(0); }
-    Param qx() throw(invalid_state_exception) { return param(1); }
-    Param qy() throw(invalid_state_exception) { return param(2); }
-    Param qz() throw(invalid_state_exception) { return param(3); }
+    //NOTE You can either use qw, ... OR workplane!
+
+    bool isNormalIn3D() { return entity()->type == SLVS_E_NORMAL_IN_3D; }
+    Param qw() { if (isNormalIn3D()) return param(0); else throw invalid_state_exception("2d normal doesn't have qw"); }
+    Param qx() { if (isNormalIn3D()) return param(1); else throw invalid_state_exception("2d normal doesn't have qx"); }
+    Param qy() { if (isNormalIn3D()) return param(2); else throw invalid_state_exception("2d normal doesn't have qy"); }
+    Param qz() { if (isNormalIn3D()) return param(3); else throw invalid_state_exception("2d normal doesn't have qz"); }
+
+    bool isNormalIn2D() { return entity()->type == SLVS_E_NORMAL_IN_2D; }
+    Workplane workplane();
 };
 
 class Workplane : public Entity {
     friend class System;
     Workplane() : Entity(NULL, SLVS_FREE_IN_3D) { }
 public:
-    Workplane(const Entity& e) : Entity(e) { }
+    explicit Workplane(const Entity& e) : Entity(e) { }
     Workplane(Point3d origin, Normal3d normal,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
         Slvs_Entity e = Slvs_MakeWorkplane(0, group, origin.handle(), normal.handle());
@@ -218,10 +227,21 @@ public:
 
 Workplane Workplane::FreeIn3D = Workplane();
 
+Normal3d::Normal3d(Workplane wrkpl, Slvs_hGroup group) {
+    init(wrkpl.system(),
+        Slvs_MakeNormal2d(0, group, wrkpl.handle()));
+}
+
+Workplane Normal3d::workplane(){
+    if (!isNormalIn2D())
+        throw invalid_state_exception("3d normal doesn't have a workplane");
+    return Workplane::forEntity(this);
+}
+
 class Point2d : public Entity {
     friend class System;
-    Point2d(const Entity& e) : Entity(e) { }
 public:
+    explicit Point2d(const Entity& e) : Entity(e) { }
     Point2d(Workplane workplane, Param u,
             Param v, System* system = NULL, Slvs_hGroup group = USE_DEFAULT_GROUP) {
         if (!system)
@@ -245,6 +265,10 @@ public:
         Slvs_Entity e = Slvs_MakeLineSegment(0, group, wrkpl.handle(), a.handle(), b.handle());
         init(a.system(), e);
     }
+
+    Point3d a() { return Point3d( fromHandle(entity()->point[0])); }
+    Point3d b() { return Point3d( fromHandle(entity()->point[1])); }
+    //Workplane workplane() { return Workplane::forEntity(this); }
 };
 
 class LineSegment2d : public Entity {
@@ -253,6 +277,74 @@ public:
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
         Slvs_Entity e = Slvs_MakeLineSegment(0, group, wrkpl.handle(), a.handle(), b.handle());
         init(wrkpl.system(), e);
+    }
+
+    Point2d a() { return Point2d( fromHandle(entity()->point[0])); }
+    Point2d b() { return Point2d( fromHandle(entity()->point[1])); }
+    Workplane workplane() { return Workplane::forEntity(this); }
+};
+
+class ArcOfCircle : public Entity {
+public:
+    ArcOfCircle(Workplane wrkpl, Normal3d normal,
+            Point2d center, Point2d start, Point2d end,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        Slvs_Entity e = Slvs_MakeArcOfCircle(0, group, wrkpl.handle(), normal.handle(), center.handle(), start.handle(), end.handle());
+        init(wrkpl.system(), e);
+    }
+
+    Point2d  center() { return Point2d( fromHandle(entity()->point[0])); }
+    Point2d  start()  { return Point2d( fromHandle(entity()->point[1])); }
+    Point2d  end()    { return Point2d( fromHandle(entity()->point[2])); }
+    Normal3d normal() { return Normal3d(fromHandle(entity()->normal  )); }
+    Workplane workplane() { return Workplane::forEntity(this); }
+};
+
+class Distance : public Entity {
+public:
+    explicit Distance(const Entity& e) : Entity(e) { }
+    Distance(Workplane wrkpl, Param distance,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        System* system = wrkpl.system();
+        distance.prepareFor(system, group);
+        Slvs_Entity e = Slvs_MakeDistance(0, group, wrkpl.handle(), distance.handle());
+        init(wrkpl.system(), e);
+    }
+
+    Param     distance()  { return param(0); }
+    Workplane workplane() { return Workplane::forEntity(this); }
+};
+
+class Circle : public Entity {
+public:
+    Circle(Workplane wrkpl, Normal3d normal,
+            Point2d center, Distance radius,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        Slvs_Entity e = Slvs_MakeCircle(0, group, wrkpl.handle(), center.handle(), normal.handle(), radius.handle());
+        init(wrkpl.system(), e);
+    }
+
+    Point2d   center()    { return Point2d( fromHandle(entity()->point[0])); }
+    Distance  distance()  { return Distance(fromHandle(entity()->distance)); }
+    Normal3d  normal()    { return Normal3d(fromHandle(entity()->normal  )); }
+    Workplane workplane() { return Workplane::forEntity(this); }
+};
+
+class Cubic : public Entity {
+public:
+    //TODO can we use it in 2d and 3d ?
+    //TODO implement getters
+    Cubic(Workplane wrkpl, Point2d pt0, Point2d pt1,
+            Point2d pt2, Point2d pt3,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        Slvs_Entity e = Slvs_MakeCubic(0, group, wrkpl.handle(), pt0.handle(), pt1.handle(), pt2.handle(), pt3.handle());
+        init(wrkpl.system(), e);
+    }
+    Cubic(Point3d pt0, Point3d pt1,
+            Point3d pt2, Point3d pt3,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        Slvs_Entity e = Slvs_MakeCubic(0, group, SLVS_FREE_IN_3D, pt0.handle(), pt1.handle(), pt2.handle(), pt3.handle());
+        init(pt0.system(), e);
     }
 };
 

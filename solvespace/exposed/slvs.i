@@ -164,11 +164,18 @@ public:
             System* system = NULL,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
         throw_entity_constructor;
+    Normal3d(Workplane wrkpl, Slvs_hGroup group = USE_DEFAULT_GROUP);
 
+    //NOTE You can either use qw, ... OR workplane!
+
+    bool isNormalIn3D() throw(invalid_state_exception);
     Param qw() throw(invalid_state_exception);
     Param qx() throw(invalid_state_exception);
     Param qy() throw(invalid_state_exception);
     Param qz() throw(invalid_state_exception);
+
+    bool isNormalIn2D() throw(invalid_state_exception);
+    Workplane workplane() throw(invalid_state_exception);
 };
 
 class Workplane : public Entity {
@@ -190,9 +197,9 @@ public:
             Slvs_hGroup group = USE_DEFAULT_GROUP)
         throw_entity_constructor;
 
-    Param u();
-    Param v();
-    Workplane workplane();
+    Param     u()         throw(invalid_state_exception);
+    Param     v()         throw(invalid_state_exception);
+    Workplane workplane() throw(invalid_state_exception);
 };
 
 class LineSegment3d : public Entity {
@@ -200,6 +207,9 @@ public:
     LineSegment3d(Point3d a, Point3d b, Workplane wrkpl = Workplane::FreeIn3D,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
         throw_entity_constructor;
+
+    Point3d a() throw(invalid_state_exception);
+    Point3d b() throw(invalid_state_exception);
 };
 
 class LineSegment2d : public Entity {
@@ -207,6 +217,47 @@ public:
     LineSegment2d(Workplane wrkpl, Point2d a, Point2d b,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
         throw_entity_constructor;
+
+    Point2d a()           throw(invalid_state_exception);
+    Point2d b()           throw(invalid_state_exception);
+    Workplane workplane() throw(invalid_state_exception);
+};
+
+class ArcOfCircle : public Entity {
+public:
+    ArcOfCircle(Workplane wrkpl, Normal3d normal,
+            Point2d center, Point2d start, Point2d end,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+
+    Point2d   center()    throw(invalid_state_exception);
+    Point2d   start()     throw(invalid_state_exception);
+    Point2d   end()       throw(invalid_state_exception);
+    Normal3d  normal()    throw(invalid_state_exception);
+    Workplane workplane() throw(invalid_state_exception);
+};
+
+class Distance : public Entity {
+public:
+    Distance(Workplane wrkpl, Param distance,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+
+    Param     distance()  throw(invalid_state_exception);
+    Workplane workplane() throw(invalid_state_exception);
+};
+
+class Circle : public Entity {
+public:
+    Circle(Workplane wrkpl, Normal3d normal,
+            Point2d center, Distance radius,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+
+    Point2d   center()    throw(invalid_state_exception);
+    Distance  distance()  throw(invalid_state_exception);
+    Normal3d  normal()    throw(invalid_state_exception);
+    Workplane workplane() throw(invalid_state_exception);
 };
 
 class System : public Slvs_System {
