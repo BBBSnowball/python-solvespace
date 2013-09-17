@@ -805,6 +805,24 @@ public:
         }
     }
 
+    void set_dragged(int i, Param param) {
+        set_dragged(i, param.handle());
+    }
+
+    void set_dragged(Point2d point) {
+        dragged[0] = point.u().handle();
+        dragged[1] = point.v().handle();
+        dragged[2] = 0;
+        dragged[3] = 0;
+    }
+
+    void set_dragged(Point3d point) {
+        dragged[0] = point.x().handle();
+        dragged[1] = point.y().handle();
+        dragged[2] = point.z().handle();
+        dragged[3] = 0;
+    }
+
     int solve(Slvs_hGroup hg = 0) {
         if (hg == 0)
             hg = default_group;

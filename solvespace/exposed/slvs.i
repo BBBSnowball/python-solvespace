@@ -440,6 +440,17 @@ public:
     void set_dragged(int i, Slvs_hParam param)
         throw(invalid_value_exception);
 
+    void set_dragged(int i, Param param);
+
+    void set_dragged(Point2d point);
+
+    void set_dragged(Point3d point);
+
+    %pythoncode %{
+        __swig_setmethods__["dragged"] = set_dragged
+        if _newclass: value = property(None, set_dragged)
+    %}
+
     int solve(Slvs_hGroup hg = 0);
 
 

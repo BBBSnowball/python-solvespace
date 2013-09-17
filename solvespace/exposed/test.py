@@ -94,9 +94,7 @@ class TestSlvs(unittest.TestCase):
 
         # Let's tell the solver to keep the second point as close to constant
         # as possible, instead moving the first point.
-        sys.set_dragged(0, 4);
-        sys.set_dragged(1, 5);
-        sys.set_dragged(2, 6);
+        sys.set_dragged(p2)
 
         # Now that we have written our system, we solve.
         Slvs_Solve(sys, g);
@@ -207,9 +205,9 @@ class TestSlvs(unittest.TestCase):
         sys.calculateFaileds = 1;
 
         # And solve.
-        Slvs_Solve(sys, g);
+        result = sys.solve()
 
-        if(sys.result == SLVS_RESULT_OKAY):
+        if(result == SLVS_RESULT_OKAY):
             printf("solved okay");
             printf("line from (%.3f %.3f) to (%.3f %.3f)",
                     sys.get_param(7).val, sys.get_param(8).val,
