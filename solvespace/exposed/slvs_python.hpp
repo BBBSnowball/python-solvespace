@@ -299,7 +299,14 @@ public:
     Workplane workplane() { return Workplane::forEntity(this); }
 };
 
-class ArcOfCircle : public Entity {
+class Circular : public Entity {
+protected:
+    Circular() { }
+public:
+    explicit Circular(const Entity& e) : Entity(e) { }
+};
+
+class ArcOfCircle : public Circular {
 public:
     ArcOfCircle(Workplane wrkpl, Normal3d normal,
             Point2d center, Point2d start, Point2d end,
@@ -330,7 +337,7 @@ public:
     Workplane workplane() { return Workplane::forEntity(this); }
 };
 
-class Circle : public Entity {
+class Circle : public Circular {
 public:
     Circle(Workplane wrkpl, Normal3d normal,
             Point2d center, Distance radius,
@@ -532,14 +539,32 @@ public:
             0,
             0, 0, line.handle(), 0));
     }
-// SLVS_C_DIAMETER           
+    static Constraint diameter(double diameter,
+            Workplane wrkpl, Circular c,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_DIAMETER,
+            wrkpl.handle(),
+            diameter,
+            0, 0, c.handle(), 0));
+    }
 // SLVS_C_SAME_ORIENTATION   
 // SLVS_C_ANGLE              
 // SLVS_C_PARALLEL           
 // SLVS_C_PERPENDICULAR      
 // SLVS_C_ARC_LINE_TANGENT   
 // SLVS_C_CUBIC_LINE_TANGENT 
-// SLVS_C_EQUAL_RADIUS       
+    static Constraint equal_radius(
+            Workplane wrkpl, Circular c1, Circular c2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(wrkpl.system(), Slvs_MakeConstraint(
+            0, group,
+            SLVS_C_EQUAL_RADIUS,
+            wrkpl.handle(),
+            0,
+            0, 0, c1.handle(), c2.handle()));
+    }
 // SLVS_C_PROJ_PT_DISTANCE   
 // SLVS_C_WHERE_DRAGGED      
 // SLVS_C_CURVE_CURVE_TANGENT

@@ -83,7 +83,6 @@ class TestSlvs(unittest.TestCase):
         a = sys.add_param(10.0)
         b = sys.add_param(10.0)
         c = sys.add_param(10.0)
-        #p1 = sys.add_point3d(Param(10.0), Param(10.0), Param(10.0))
         p1 = Point3d(a, b, c)
         # and a second point at (20 20 20)
         p2 = Point3d(Param(20.0), Param(20.0), Param(20.0), sys)
@@ -187,54 +186,21 @@ class TestSlvs(unittest.TestCase):
 
         # And the distance from our line segment to the origin is 10.0 units.
         Constraint.distance(10.0, wplane, p1, line)
-        #sys.add_constraint(Slvs_MakeConstraint(
-        #                                        2, g,
-        #                                        SLVS_C_PT_LINE_DISTANCE,
-        #                                        wplane.handle,
-        #                                        10.0,
-        #                                        p1.handle, 0, line.handle, 0));
 
         # And the line segment is vertical.
-        #sys.add_constraint(Slvs_MakeConstraint(
-        #                                        3, g,
-        #                                        SLVS_C_VERTICAL,
-        #                                        wplane.handle,
-        #                                        0.0,
-        #                                        0, 0, line.handle, 0));
         Constraint.vertical(wplane, line)
         # And the distance from one endpoint to the origin is 15.0 units.
         Constraint.distance(15.0, wplane, p301, p1)
-        #sys.add_constraint(Slvs_MakeConstraint(
-        #                                        4, g,
-        #                                        SLVS_C_PT_PT_DISTANCE,
-        #                                        wplane.handle,
-        #                                        15.0,
-        #                                        p301.handle, p1.handle, 0, 0));
 
         if False:
             # And same for the other endpoint; so if you add this constraint then
             # the sketch is overconstrained and will signal an error.
-            sys.add_constraint(Slvs_MakeConstraint(
-                                                    5, g,
-                                                    SLVS_C_PT_PT_DISTANCE,
-                                                    wplane.handle,
-                                                    18.0,
-                                                    p302.handle, p1.handle, 0, 0));
+            Constraint.distance(18.0, wplane, p302, p1)
 
         # The arc and the circle have equal radius.
-        sys.add_constraint(Slvs_MakeConstraint(
-                                                6, g,
-                                                SLVS_C_EQUAL_RADIUS,
-                                                wplane.handle,
-                                                0.0,
-                                                0, 0, p401.handle, p402.handle));
+        Constraint.equal_radius(wplane, p401, p402)
         # The arc has radius 17.0 units.
-        sys.add_constraint(Slvs_MakeConstraint(
-                                                7, g,
-                                                SLVS_C_DIAMETER,
-                                                wplane.handle,
-                                                17.0*2,
-                                                0, 0, p401.handle, 0));
+        Constraint.diameter(17.0*2, wplane, p401)
 
         # If the solver fails, then ask it to report which constraints caused
         # the problem.

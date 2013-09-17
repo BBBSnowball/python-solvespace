@@ -233,7 +233,12 @@ public:
     Workplane workplane() throw(invalid_state_exception);
 };
 
-class ArcOfCircle : public Entity {
+class Circular : public Entity {
+private:
+    Circular();
+};
+
+class ArcOfCircle : public Circular {
 public:
     ArcOfCircle(Workplane wrkpl, Normal3d normal,
             Point2d center, Point2d start, Point2d end,
@@ -257,7 +262,7 @@ public:
     Workplane workplane() throw(invalid_state_exception);
 };
 
-class Circle : public Entity {
+class Circle : public Circular {
 public:
     Circle(Workplane wrkpl, Normal3d normal,
             Point2d center, Distance radius,
@@ -361,6 +366,14 @@ public:
             Workplane wrkpl, LineSegment line,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
 		throw_entity_constructor;
+    static Constraint diameter(double diameter,
+            Workplane wrkpl, Circular c,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+    static Constraint equal_radius(
+            Workplane wrkpl, Circular c1, Circular c2,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
 };
 
 class System : public Slvs_System {
