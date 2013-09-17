@@ -10,7 +10,8 @@ is a parametric 3d CAD program.
 My contributions:
 
 * making it work on Linux (only the library, not the whole program!)
-* Python wrapper
+* nice Python interface
+* some helpers for use with SolidPython (OpenSCAD)
 
 I'm going to use the Python library with [SolidPython][solidpython], so I have a
 constraint solver for [OpenSCAD][openscad].
@@ -38,32 +39,53 @@ work on all platforms.
 Usage
 -----
 
-Have a look at `CDemo.c` and `test.py`. The Python API is almost the same as the C API.
-Unfortunately, I couldn't find any documentation for the C API (except for the example
-program and the header file `slvs.h`).
+Here is a simple example:
 
-I will only explain the differences to the C API. Unfortunately, you cannot directly use
-the arrays in `Slvs_System`, so there are a few helpers:
+````
+from slvs import *
 
-* The constructor reserves memory for 50 items in each of the arrays.
-* You can use `add_param`, `add_entity` and `add_constraint` to add items.
-* You can use `set_dragged(i, p)` to set `sys.dragged[i] = p`.
-* You can access params with `get_param(i)`.
-* Furthermore, call-by-reference arguments are mapped to return values, e.g.
-  `Slvs_QuaternionU(qw, qx, qy, qz, &x, &y, &z)` (in C) becomes
-  `x, y, z = Slvs_QuaternionU(qw, qx, qy, qz)` (in Python).
+# create a system with up to 20 parameters, entities and constraints
+# (If you use System(), you will get the default of 50 parameters, ...)
+sys = System(20)
 
-The wrapper code is merely a hundred lines. If you think that something is missing, please
-feel free to add it.
+# A point, initially at (x y z) = (10 10 10)
+p1 = Point3d(Param(10.0), Param(10.0), Param(10.0), sys)
+# and a second point at (20 20 20)
+p2 = Point3d(Param(20.0), Param(20.0), Param(20.0), sys)
+# and a line segment connecting them.
+LineSegment3d(p1, p2)
+
+# The distance between the points should be 30.0 units.
+Constraint.distance(30.0, p1, p2)
+
+# Let's tell the solver to keep the second point as close to constant
+# as possible, instead moving the first point.
+sys.set_dragged(p2)
+
+# Now that we have written our system, we solve.
+sys.solve()
+
+if (sys.result == SLVS_RESULT_OKAY):
+    print ("okay; now at (%.3f %.3f %.3f)\n" +
+           "             (%.3f %.3f %.3f)") % (
+            sys.get_param(0).val, sys.get_param(1).val, sys.get_param(2).val,
+            sys.get_param(3).val, sys.get_param(4).val, sys.get_param(5).val)
+    print "%d DOF" % sys.dof
+else:
+    print "solve failed"
+````
+
+Have a look at `CDemo.c` and `test.py`. They contain that example and another one. You can
+use the raw C API from Python, but I suggest that you use the wrapper classes. `test.py`
+uses both of them because it is meant to test the program.
 
 TODO
 ----
 
-* Create a more pythonic interface or at least strip the `Slvs_` prefix.
-* Integrate with SolidPython.
-* Improve memory management: fake a private heap (see `solvespace/win32/w32util.cpp`)
-* Clean up the code: remove all files that the library doesn't need
-* Make it build on all (or most) platforms
+* Integrate better with SolidPython.
+* Find info about the other constraints and implement them.
+* Clean up the code: remove all files that the library doesn't need.
+* Make it build on all (or most) platforms.
 
 License
 -------
