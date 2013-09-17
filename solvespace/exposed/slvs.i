@@ -126,6 +126,11 @@ public:
         __swig_setmethods__["value"] = SetValue
         if _newclass: value = property(GetValue, SetValue)
     %}
+
+    %pythoncode %{
+        def to_openscad(self):
+            return self.value
+    %}
 };
 
 class Entity {
@@ -161,6 +166,11 @@ public:
     Param x() throw(invalid_state_exception);
     Param y() throw(invalid_state_exception);
     Param z() throw(invalid_state_exception);
+
+    %pythoncode %{
+        def to_openscad(self):
+            return [ self.x().value, self.y().value, self.z().value ]
+    %}
 };
 
 class Normal3d : public Entity {
@@ -205,6 +215,11 @@ public:
     Param     u()         throw(invalid_state_exception);
     Param     v()         throw(invalid_state_exception);
     Workplane workplane() throw(invalid_state_exception);
+
+    %pythoncode %{
+        def to_openscad(self):
+            return [ self.u().value, self.v().value ]
+    %}
 };
 
 class LineSegment : public Entity {

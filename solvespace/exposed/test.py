@@ -247,5 +247,26 @@ class TestSlvs(unittest.TestCase):
                 printf("system nonconvergent");
             self.assertTrue(False, "solve failed")
 
+    def test_with_solidpython(self):
+        import solid
+
+        sys = System()
+
+        a = sys.add_param(10)
+        b = sys.add_param(3)
+        c = sys.add_param(17)
+        d = sys.add_param(23)
+
+        #NOTE We should use Point2d, but I don't want to
+        #     create a workplane just for that.
+        p1 = Point3d(Param(7), Param(2), Param(0), sys)
+
+        poly = solid.polygon([[a,b],[c,d], [0,0], p1])
+
+        self.assertEqual(
+            solid.scad_render(poly),
+            "\n\npolygon(paths = [[0, 1, 2, 3]], points = [[10.0000000000, 3.0000000000], [17.0000000000, 23.0000000000], [0, 0], [7.0000000000, 2.0000000000, 0.0000000000]]);")
+
+
 if __name__ == '__main__':
     unittest.main()
