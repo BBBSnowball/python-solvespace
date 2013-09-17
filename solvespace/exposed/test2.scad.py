@@ -1,3 +1,4 @@
+import math
 from slvs  import *
 from solid import *
 
@@ -77,9 +78,51 @@ transpose(m)
 m[0][3] = wrkpl.origin().x().value
 m[1][3] = wrkpl.origin().y().value
 m[2][3] = wrkpl.origin().z().value
-plane = multmatrix(m)(plane)
+plane1 = multmatrix(m)(plane)
 
-geom += plane
+geom += plane1
 
+
+
+# This time we do it without the solver.
+
+# Move points, so the second plane won't overlap the first
+p1.z().value += 2
+p2.z().value += 2
+p3.z().value += 2
+
+origin = [ p1.x().value, p1.y().value, p1.z().value ]
+v1 = [ p2.x().value - origin[0], p2.y().value - origin[1], p2.z().value - origin[2] ]
+v2 = [ p3.x().value - origin[0], p3.y().value - origin[1], p3.z().value - origin[2] ]
+
+def cross(a, b):
+	return [ a[1]*b[2] - a[2]*b[1],
+	         a[2]*b[0] - a[0]*b[2],
+	         a[0]*b[1] - a[1]*b[0] ]
+def normalize(v):
+	l = math.sqrt(sum(map(lambda x: x*x, v)))
+	return map(lambda x: x/l, v)
+
+# make sure they have length 1.0
+v1 = normalize(v1)
+v2 = normalize(v2)
+
+# third vector is perpendicular
+v3 = cross(v1, v2)
+
+# we calculate the second vector again to make sure
+# that v1 and v2 are perpendicular
+v2 = cross(v3, v1)
+
+m = [ v1 + [0],
+      v2 + [0],
+      v3 + [0],
+      [0, 0, 0, 1] ]
+transpose(m)
+m[0][3] = origin[0]
+m[1][3] = origin[1]
+m[2][3] = origin[2]
+plane2 = multmatrix(m)(plane)
+geom += plane2
 
 scad_render_to_file(geom, "/tmp/test2.scad")
