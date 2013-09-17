@@ -396,6 +396,25 @@ public:
     //Workplane   workplane() { return Workplane(Entity::fromHandle(sys, constraint()->wrkpl)); }
 
 public:
+    // This constructor can be used to make arbitrary
+    // constraints. It has a very ugly name to discourage
+    // its use. If you need a constraint that the library
+    // doesn't support, you should implement it.
+    static Constraint some_other_constraint(
+            System* system,
+            int type, Workplane workplane, double value,
+            Point ptA, Point ptB, Entity entityA, Entity entityB,
+            Slvs_hGroup group = USE_DEFAULT_GROUP) {
+        return init(system, Slvs_MakeConstraint(
+            0, group,
+            type,
+            workplane.handle(),
+            value,
+            ptA.handle(), ptB.handle(),
+            entityA.handle(), entityB.handle()));
+    }
+
+
     static Constraint coincident(double value,
             Point3d p1, Point3d p2,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {

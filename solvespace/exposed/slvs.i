@@ -309,6 +309,16 @@ public:
         if _newclass: group = property(GetGroup)
     %}
 
+    // This constructor can be used to make arbitrary
+    // constraints. It has a very ugly name to discourage
+    // its use. If you need a constraint that the library
+    // doesn't support, you should implement it.
+    static Constraint some_other_constraint(
+            System* system,
+            int type, Workplane workplane, double value,
+            Point ptA, Point ptB, Entity entityA, Entity entityB,
+            Slvs_hGroup group = USE_DEFAULT_GROUP);
+
     // process source of those functions like this:
     // find:    ' \{(.|\n)*?\}'
     // replace: '\n\t\tthrow_entity_constructor;'
