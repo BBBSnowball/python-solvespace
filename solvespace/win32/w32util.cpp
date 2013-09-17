@@ -94,12 +94,10 @@ void InitHeaps(void) {
 #else   // not WIN32
 
 #include <stdlib.h>
-
-//TODO We're using the default heap here, so the 'free' trick (see above)
-//     doesn't work. This means that we might leak a lot of memory.
-//     -> We could keep track of temporary stuff and free it in
-//        FreeAllTemporary. Of course, we must 'forget' any pointer that
-//        has been deleted with FreeTemporary, so we don't free it again.
+// not available without support for C++0x
+// I could enable that, but I rather use the old, portable way.
+//#include <unordered_set>
+#include <set>
 
 void dbp(char *str, ...)
 {
@@ -122,11 +120,31 @@ void GetAbsoluteFilename(char *file)
     strcpy(file, absoluteFile);
 }
 
-void *AllocTemporary(int n) { return MemAlloc(n); }
-void FreeTemporary(void *p) { MemFree(p); }
+// We're using the default heap here, so the 'free' trick (see above)
+// doesn't work. This means that we might leak a lot of memory.
+// Therefore, we keep track of temporary stuff and free it in
+// FreeAllTemporary. Of course, we must 'forget' any pointer that
+// has been deleted with FreeTemporary, so we don't free it again.
+
+typedef std::set<void*> tmem;
+tmem temporary_memory;
+
+void *AllocTemporary(int n) {
+    void *p = MemAlloc(n);
+    temporary_memory.insert(p);
+    return p;
+}
+void FreeTemporary(void *p) {
+    temporary_memory.erase(p);
+    MemFree(p);
+}
 void FreeAllTemporary(void) {
-    //TODO
-    printf("TODO: We should free all temps now\n");
+    for (typename tmem::iterator i = temporary_memory.begin();
+         i != temporary_memory.end();
+         i++) {
+        MemFree(*i);
+    }
+    temporary_memory.clear();
 
     vl();
 }
@@ -136,10 +154,16 @@ void *MemRealloc(void *p, int n) {
         return MemAlloc(n);
     }
 
-    p = realloc(p, n);
-    if(!p) oops();
+    void *p2 = realloc(p, n);
+    if(!p2) oops();
     //TODO initialize additional memory with zeros
-    return p;
+
+    if (p != p2) {
+        temporary_memory.erase(p);
+        temporary_memory.insert(p2);
+    }
+
+    return p2;
 }
 void *MemAlloc(int n) {
     void* x = malloc(n);
