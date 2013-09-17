@@ -41,7 +41,7 @@ Usage
 
 Here is a simple example:
 
-````
+````python
 from slvs import *
 
 # create a system with up to 20 parameters, entities and constraints
