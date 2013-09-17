@@ -415,24 +415,24 @@ public:
     }
 
 
-    static Constraint coincident(double value,
+    static Constraint coincident(
             Point3d p1, Point3d p2,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
         return init(p1.system(), Slvs_MakeConstraint(
             0, group,
             SLVS_C_POINTS_COINCIDENT,
             SLVS_FREE_IN_3D,
-            value,
+            0,
             p1.handle(), p2.handle(), 0, 0));
     }
-    static Constraint coincident(double value,
+    static Constraint coincident(
             Workplane wrkpl, Point p1, Point p2,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
         return init(p1.system(), Slvs_MakeConstraint(
             0, group,
             SLVS_C_POINTS_COINCIDENT,
             wrkpl.handle(),
-            value,
+            0,
             p1.handle(), p2.handle(), 0, 0));
     }
     static Constraint distance(double value,
@@ -463,7 +463,7 @@ public:
             SLVS_C_PT_PLANE_DISTANCE,
             wrkpl.handle(),
             value,
-            p.handle(), 0, 0, 0));
+            p.handle(), 0, wrkpl.handle(), 0));
     }
     static Constraint distance(double value,
             Workplane wrkpl, Point p, LineSegment line,
@@ -486,44 +486,44 @@ public:
             p.handle(), 0, line.handle(), 0));
     }
 // SLVS_C_PT_FACE_DISTANCE   
-    static Constraint on(double value,
+    static Constraint on(
             Workplane wrkpl, Point3d p,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
         return init(wrkpl.system(), Slvs_MakeConstraint(
             0, group,
             SLVS_C_PT_IN_PLANE,
             wrkpl.handle(),
-            value,
-            p.handle(), 0, 0, 0));
+            0,
+            p.handle(), 0, wrkpl.handle(), 0));
     }
-    static Constraint on(double value,
+    static Constraint on(
             Workplane wrkpl, Point p, LineSegment line,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
         return init(wrkpl.system(), Slvs_MakeConstraint(
             0, group,
             SLVS_C_PT_ON_LINE,
             wrkpl.handle(),
-            value,
+            0,
             p.handle(), 0, line.handle(), 0));
     }
-    static Constraint on(double value,
+    static Constraint on(
             Point3d p, LineSegment3d line,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
         return init(p.system(), Slvs_MakeConstraint(
             0, group,
             SLVS_C_PT_ON_LINE,
             SLVS_FREE_IN_3D,
-            value,
+            0,
             p.handle(), 0, line.handle(), 0));
     }
-    static Constraint on(double value,
+    static Constraint on(
             Workplane wrkpl, Point p, Circle circle,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
         return init(wrkpl.system(), Slvs_MakeConstraint(
             0, group,
             SLVS_C_PT_ON_CIRCLE,
             wrkpl.handle(),
-            value,
+            0,
             p.handle(), 0, circle.handle(), 0));
     }
 // SLVS_C_PT_ON_FACE         

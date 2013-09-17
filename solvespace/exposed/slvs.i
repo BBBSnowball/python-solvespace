@@ -339,11 +339,11 @@ public:
     // replace: '\n\t\tthrow_entity_constructor;'
     // (Sublime Text 2)
 
-    static Constraint coincident(double value,
+    static Constraint coincident(
             Point3d p1, Point3d p2,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
 		throw_entity_constructor;
-    static Constraint coincident(double value,
+    static Constraint coincident(
             Workplane wrkpl, Point p1, Point p2,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
 		throw_entity_constructor;
@@ -367,19 +367,19 @@ public:
             Point3d p, LineSegment3d line,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
 		throw_entity_constructor;
-    static Constraint on(double value,
+    static Constraint on(
             Workplane wrkpl, Point3d p,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
 		throw_entity_constructor;
-    static Constraint on(double value,
+    static Constraint on(
             Workplane wrkpl, Point p, LineSegment line,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
 		throw_entity_constructor;
-    static Constraint on(double value,
+    static Constraint on(
             Point3d p, LineSegment3d line,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
 		throw_entity_constructor;
-    static Constraint on(double value,
+    static Constraint on(
             Workplane wrkpl, Point p, Circle circle,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
 		throw_entity_constructor;
