@@ -26,7 +26,7 @@
 
 #if defined(SWIGPYTHON)
 
-// Some quaterion functions returns values with call-by-reference, so
+// Some quaternion functions returns values with call-by-reference, so
 // we have to tell SWIG to do the right thing.
 // example: DLL void Slvs_QuaternionU(double qw, ...,
 //                             double *x, double *y, double *z);
@@ -97,6 +97,90 @@
     }
 }
 */
+
+
+// some vector math
+
+%pythoncode %{
+
+import math
+
+def mat_transpose(m):
+    for i in range(4):
+        for j in range(4):
+            if i < j:
+                a = m[i][j]
+                b = m[j][i]
+                m[i][j] = b
+                m[j][i] = a
+
+def vec_cross(a, b):
+    return [ a[1]*b[2] - a[2]*b[1],
+             a[2]*b[0] - a[0]*b[2],
+             a[0]*b[1] - a[1]*b[0] ]
+def vec_normalize(v):
+    l = math.sqrt(sum(map(lambda x: x*x, v)))
+    return map(lambda x: x/l, v)
+
+# call to_openscad(), if it exists
+def _to_openscad(x):
+    if hasattr(x, 'to_openscad'):
+        return x.to_openscad()
+    elif isinstance(x, list) or isinstance(x, tuple):
+        return map(_to_openscad, x)
+    else:
+        return x
+
+# Move and rotate an object using three points:
+# - The origin will be moved into p1.
+# - A point of the x axis will be moved into p2.
+# - A point of the xy-plane will be moved into p3.
+# In practice, this means: Build your object near the
+# origin on the xy-plane. You determine the final
+# position by deciding where the origin and x-axis
+# should go, so both of them should have some
+# significance. The xy-plane is also important, but
+# usually this will be a flat surface, anyway (if you
+# extrude from it).
+def move_and_rotate(p1, p2, p3):
+    # get values from Param or Point
+    origin = _to_openscad(p1)
+    p2 = _to_openscad(p2)
+    p3 = _to_openscad(p3)
+
+    # calculate vectors from origin to p2 and p3
+    v1 = map(lambda a,b: a-b, p2, origin)
+    v2 = map(lambda a,b: a-b, p3, origin)
+
+    # make sure they have length 1.0
+    v1 = vec_normalize(v1)
+    v2 = vec_normalize(v2)
+
+    # third vector is perpendicular
+    v3 = vec_cross(v1, v2)
+
+    # we calculate the second vector again to make sure
+    # that v1 and v2 are perpendicular
+    v2 = vec_cross(v3, v1)
+
+    # The vectors are the base vectors of our object
+    # coordinate system, so we can put them into the
+    # rotation matrix.
+    m = [ v1     + [0],
+          v2     + [0],
+          v3     + [0],
+          [0, 0, 0, 1] ]
+    # We have to transpose it.
+    mat_transpose(m)
+
+    # add translation to origin
+    m[0][3] = origin[0]
+    m[1][3] = origin[1]
+    m[2][3] = origin[2]
+
+    return m
+%}
+
 
 // %ignore Param::prepareFor;
 // %ignore Entity::Entity;
@@ -191,6 +275,21 @@ public:
 
     bool isNormalIn2D() throw(invalid_state_exception);
     Workplane workplane() throw(invalid_state_exception);
+
+    %pythoncode %{
+        # A normal is a quaternion in disguise, so we
+        # transform it into a rotation. You can use it
+        # with multmatrix.
+        def to_openscad(self):
+            q = [ self.qw().value, self.qx().value,
+                  self.qy().value, self.qz().value ]
+            m = [ Slvs_QuaternionU(*q) + [0],
+                  Slvs_QuaternionV(*q) + [0],
+                  Slvs_QuaternionN(*q) + [0],
+                  [0, 0, 0, 1] ]
+            mat_transpose(m)
+            return m
+    %}
 };
 
 class Workplane : public Entity {
@@ -203,6 +302,21 @@ public:
 
     Point3d  origin() throw(invalid_state_exception);
     Normal3d normal() throw(invalid_state_exception);
+
+    %pythoncode %{
+        # A workplane is transformed into the rotation
+        # and translation that moves an object to the
+        # plane and rotates it accordingly:
+        # (0,0,0)   ->  origin of plane
+        # xy-plane  ->  the plane
+        # You can use the matrix with multmatrix.
+        def to_openscad(self):
+            m = self.normal().to_openscad()
+            m[0][3] = self.origin().x().value
+            m[1][3] = self.origin().y().value
+            m[2][3] = self.origin().z().value
+            return m
+    %}
 };
 
 class Point2d : public Point {
