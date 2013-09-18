@@ -274,6 +274,8 @@ public:
 };
 
 class LineSegment3d : public LineSegment {
+    friend class System;
+    explicit LineSegment3d(const Entity& e) : LineSegment(e) { }
 public:
     LineSegment3d(Point3d a, Point3d b, Workplane wrkpl = Workplane::FreeIn3D,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
@@ -287,6 +289,8 @@ public:
 };
 
 class LineSegment2d : public LineSegment {
+    friend class System;
+    explicit LineSegment2d(const Entity& e) : LineSegment(e) { }
 public:
     LineSegment2d(Workplane wrkpl, Point2d a, Point2d b,
             Slvs_hGroup group = USE_DEFAULT_GROUP) {
@@ -307,6 +311,8 @@ public:
 };
 
 class ArcOfCircle : public Circular {
+    friend class System;
+    explicit ArcOfCircle(const Entity& e) : Circular(e) { }
 public:
     ArcOfCircle(Workplane wrkpl, Normal3d normal,
             Point2d center, Point2d start, Point2d end,
@@ -338,6 +344,8 @@ public:
 };
 
 class Circle : public Circular {
+    friend class System;
+    explicit Circle(const Entity& e) : Circular(e) { }
 public:
     Circle(Workplane wrkpl, Normal3d normal,
             Point2d center, Distance radius,
@@ -353,6 +361,8 @@ public:
 };
 
 class Cubic : public Entity {
+    friend class System;
+    explicit Cubic(const Entity& e) : Entity(e) { }
 public:
     //TODO can we use it in 2d and 3d ?
     //TODO implement getters
@@ -854,6 +864,34 @@ public:
             Slvs_MakePoint3d(0, group, x.h, y.h, z.h));
         return Point3d(e);
     }
+
+
+
+    int entity_type(int i) {
+        if (i >= entities || i < 0)
+            throw new invalid_value_exception("invalid entity index");
+
+        return entity[i].type;
+    }
+
+#   define ENTITY_GETTER(type, typecode)                                \
+        type get_##type(int i) {                                        \
+            if (entity_type(i) == typecode)                             \
+                return type(Entity(this, entity[i].h));                 \
+            else                                                        \
+                throw new invalid_state_exception("not a " #type);      \
+        }
+    ENTITY_GETTER(Point2d,       SLVS_E_POINT_IN_2D);
+    ENTITY_GETTER(Point3d,       SLVS_E_POINT_IN_3D);
+    ENTITY_GETTER(LineSegment2d, SLVS_E_LINE_SEGMENT);
+    ENTITY_GETTER(LineSegment3d, SLVS_E_LINE_SEGMENT);
+    ENTITY_GETTER(Normal3d,      SLVS_E_NORMAL_IN_3D);
+    ENTITY_GETTER(Distance,      SLVS_E_DISTANCE);
+    ENTITY_GETTER(Workplane,     SLVS_E_WORKPLANE);
+    ENTITY_GETTER(Cubic,         SLVS_E_CUBIC);
+    ENTITY_GETTER(Circle,        SLVS_E_CIRCLE);
+    ENTITY_GETTER(ArcOfCircle,   SLVS_E_ARC_OF_CIRCLE);
+#   undef ENTITY_GETTER
 };
 
 void Param::prepareFor(System* system, Slvs_hGroup group)

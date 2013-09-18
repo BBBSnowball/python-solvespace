@@ -577,4 +577,23 @@ public:
     Point3d add_point3d(Param x, Param y, Param z,
             Slvs_hGroup group = 0)
         throw_entity_constructor;
+
+
+
+    int entity_type(int i) throw(invalid_value_exception);
+
+#   define ENTITY_GETTER(type, typecode)  \
+        type get_##type(int i)            \
+            throw(invalid_value_exception, invalid_state_exception);
+    ENTITY_GETTER(Point2d,       SLVS_E_POINT_IN_2D);
+    ENTITY_GETTER(Point3d,       SLVS_E_POINT_IN_3D);
+    ENTITY_GETTER(LineSegment2d, SLVS_E_LINE_SEGMENT);
+    ENTITY_GETTER(LineSegment3d, SLVS_E_LINE_SEGMENT);
+    ENTITY_GETTER(Normal3d,      SLVS_E_NORMAL_IN_3D);
+    ENTITY_GETTER(Distance,      SLVS_E_DISTANCE);
+    ENTITY_GETTER(Workplane,     SLVS_E_WORKPLANE);
+    ENTITY_GETTER(Cubic,         SLVS_E_CUBIC);
+    ENTITY_GETTER(Circle,        SLVS_E_CIRCLE);
+    ENTITY_GETTER(ArcOfCircle,   SLVS_E_ARC_OF_CIRCLE);
+#   undef ENTITY_GETTER
 };
