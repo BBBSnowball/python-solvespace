@@ -240,10 +240,20 @@ private:
     Point();
 };
 
+//NOTE Constructors with double instead of Param are NOT
+//     defined in the C++ code. SWIG will generate wrappers
+//     and they will work because the C++ compiler
+//     automatically uses the Param constructor to convert
+//     double to Param.
+
 class Point3d : public Point {
 public:
     Point3d(Param x, Param y, Param z,
             System* system = NULL,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+    Point3d(double x, double y, double z,
+            System* system,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
         throw_entity_constructor;
 
@@ -260,6 +270,10 @@ public:
 class Normal3d : public Entity {
 public:
     Normal3d(Param qw, Param qx, Param qy, Param qz,
+            System* system = NULL,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+    Normal3d(double qw, double qx, double qy, double qz,
             System* system = NULL,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
         throw_entity_constructor;
@@ -323,6 +337,10 @@ class Point2d : public Point {
 public:
     Point2d(Workplane workplane, Param u,
             Param v, System* system = NULL,
+            Slvs_hGroup group = USE_DEFAULT_GROUP)
+        throw_entity_constructor;
+    Point2d(Workplane workplane, double u,
+            double v, System* system = NULL,
             Slvs_hGroup group = USE_DEFAULT_GROUP)
         throw_entity_constructor;
 
