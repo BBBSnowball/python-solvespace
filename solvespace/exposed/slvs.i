@@ -114,14 +114,6 @@ def mat_transpose(m):
                 m[i][j] = b
                 m[j][i] = a
 
-def vec_cross(a, b):
-    return [ a[1]*b[2] - a[2]*b[1],
-             a[2]*b[0] - a[0]*b[2],
-             a[0]*b[1] - a[1]*b[0] ]
-def vec_normalize(v):
-    l = math.sqrt(sum(map(lambda x: x*x, v)))
-    return map(lambda x: x/l, v)
-
 # call to_openscad(), if it exists
 def _to_openscad(x):
     if hasattr(x, 'to_openscad'):
@@ -130,6 +122,68 @@ def _to_openscad(x):
         return map(_to_openscad, x)
     else:
         return x
+
+class Vector(object):
+    __slots__ = "xs"
+
+    def __init__(self, *args):
+        args = _to_openscad(args)
+        if len(args) == 1 and isinstance(args[0], Vector):
+            self.xs = list(args[0].xs)
+        elif len(args) == 1 and (isinstance(args[0], list) or isinstance(x, tuple)):
+            self.xs = list(args[0])
+        else:
+            self.xs = list(args)
+
+    def __add__(self, v):
+        v = Vector(v)
+        if len(self.xs) != len(v.xs):
+            raise ValueError("vectors must have the same length (self: %d, other: %d)" % (len(self.xs), len(v.xs)))
+        return Vector(map(lambda a,b: a+b, self.xs, v.xs))
+
+    def __sub__(self, v):
+        v = Vector(v)
+        if len(self.xs) != len(v.xs):
+            raise ValueError("vectors must have the same length (self: %d, other: %d)" % (len(self.xs), len(v.xs)))
+        return Vector(map(lambda a,b: a-b, self.xs, v.xs))
+
+    def __mul__(self, v):
+        if not isinstance(v, (int, long, float)):
+            raise ValueError("Vectors can only be scaled by a number. Use cross or dot to multiply vectors.")
+        return Vector(map(lambda x: x*v, self.xs))
+
+    def cross(self, v):
+        v = Vector(v)
+        if len(self.xs) != 3 or len(v.xs) != 3:
+            raise ValueError("vectors must have length 3")
+        a = self.xs
+        b = v.xs
+        c = [ a[1]*b[2] - a[2]*b[1],
+              a[2]*b[0] - a[0]*b[2],
+              a[0]*b[1] - a[1]*b[0] ]
+        return Vector(c)
+
+    def dot(self, v):
+        v = Vector(v)
+        if len(self.xs) != len(v.xs):
+            raise ValueError("vectors must have the same length (self: %d, other: %d)" % (len(self.xs), len(v.xs)))
+        return sum(map(lambda a,b: a*b, self.xs, v.xs))
+
+    def length(self):
+        return math.sqrt(sum(map(lambda x: x*x, self.xs)))
+
+    def normalize(self, length = 1.0):
+        l = self.length()
+        return Vector(map(lambda x: x/l*length, self.xs))
+
+    def to_openscad(self):
+        return self.xs
+
+    def __getitem__(self, i):
+        return self.xs[i]
+
+    def __setitem__(self, i, v):
+        self.xs[i] = _to_openscad(v)
 
 # Move and rotate an object using three points:
 # - The origin will be moved into p1.
@@ -144,31 +198,31 @@ def _to_openscad(x):
 # extrude from it).
 def move_and_rotate(p1, p2, p3):
     # get values from Param or Point
-    origin = _to_openscad(p1)
-    p2 = _to_openscad(p2)
-    p3 = _to_openscad(p3)
+    origin = Vector(p1)
+    p2     = Vector(p2)
+    p3     = Vector(p3)
 
     # calculate vectors from origin to p2 and p3
-    v1 = map(lambda a,b: a-b, p2, origin)
-    v2 = map(lambda a,b: a-b, p3, origin)
+    v1 = p2 - origin
+    v2 = p3 - origin
 
     # make sure they have length 1.0
-    v1 = vec_normalize(v1)
-    v2 = vec_normalize(v2)
+    v1 = v1.normalize()
+    v2 = v2.normalize()
 
     # third vector is perpendicular
-    v3 = vec_cross(v1, v2)
+    v3 = v1.cross(v2)
 
     # we calculate the second vector again to make sure
     # that v1 and v2 are perpendicular
-    v2 = vec_cross(v3, v1)
+    v2 = v3.cross(v1)
 
     # The vectors are the base vectors of our object
     # coordinate system, so we can put them into the
     # rotation matrix.
-    m = [ v1     + [0],
-          v2     + [0],
-          v3     + [0],
+    m = [ v1.xs  + [0],
+          v2.xs  + [0],
+          v3.xs  + [0],
           [0, 0, 0, 1] ]
     # We have to transpose it.
     mat_transpose(m)
@@ -291,12 +345,15 @@ public:
     Workplane workplane() throw(invalid_state_exception);
 
     %pythoncode %{
+        def vector(self):
+            return [ self.qw().value, self.qx().value,
+                     self.qy().value, self.qz().value ]
+
         # A normal is a quaternion in disguise, so we
         # transform it into a rotation. You can use it
         # with multmatrix.
         def to_openscad(self):
-            q = [ self.qw().value, self.qx().value,
-                  self.qy().value, self.qz().value ]
+            q = self.vector()
             m = [ Slvs_QuaternionU(*q) + [0],
                   Slvs_QuaternionV(*q) + [0],
                   Slvs_QuaternionN(*q) + [0],
