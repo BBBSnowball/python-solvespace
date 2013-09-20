@@ -11,6 +11,8 @@
 from slvs import *
 import unittest
 
+verbose = False
+
 def printf(fmt, *args):
     print fmt % args
 
@@ -25,6 +27,9 @@ class TestSlvs(unittest.TestCase):
         return abs(a-b) < 0.001
 
     def assertFloatEqual(self, a, b):
+        if not isinstance(a, (int, long, float)) \
+                or not isinstance(b, (int, long, float)):
+            self.assertTrue(False, "not a float")
         if self.floatEqual(a, b):
             self.assertTrue(True)
         else:
@@ -35,7 +40,11 @@ class TestSlvs(unittest.TestCase):
             self.assertListEqual(xs, ys)
         else:
             for i,a,b in zip(range(len(xs)), xs, ys):
-                if not self.floatEqual(a, b):
+                aL = isinstance(a, (list, tuple))
+                bL = isinstance(b, (list, tuple))
+                if aL and bL:
+                    self.assertFloatListEqual(a, b)
+                elif not self.floatEqual(a, b):
                     self.assertEqual(a, b, "in list at index %d" % i)
             self.assertTrue(True)
 
@@ -100,11 +109,12 @@ class TestSlvs(unittest.TestCase):
         Slvs_Solve(sys, g);
 
         if (sys.result == SLVS_RESULT_OKAY):
-            print ("okay; now at (%.3f %.3f %.3f)\n" +
-                   "             (%.3f %.3f %.3f)") % (
-                    sys.get_param(0).val, sys.get_param(1).val, sys.get_param(2).val,
-                    sys.get_param(3).val, sys.get_param(4).val, sys.get_param(5).val)
-            print "%d DOF" % sys.dof
+            if verbose:
+                print ("okay; now at (%.3f %.3f %.3f)\n" +
+                       "             (%.3f %.3f %.3f)") % (
+                        sys.get_param(0).val, sys.get_param(1).val, sys.get_param(2).val,
+                        sys.get_param(3).val, sys.get_param(4).val, sys.get_param(5).val)
+                print "%d DOF" % sys.dof
 
             self.assertFloatEqual(sys.get_param(0).val,  2.698)
             self.assertFloatEqual(sys.get_param(1).val,  2.698)
@@ -208,41 +218,45 @@ class TestSlvs(unittest.TestCase):
         result = sys.solve()
 
         if(result == SLVS_RESULT_OKAY):
-            printf("solved okay");
-            printf("line from (%.3f %.3f) to (%.3f %.3f)",
-                    sys.get_param(7).val, sys.get_param(8).val,
-                    sys.get_param(9).val, sys.get_param(10).val);
+            if verbose:
+                printf("solved okay");
+                printf("line from (%.3f %.3f) to (%.3f %.3f)",
+                        sys.get_param(7).val, sys.get_param(8).val,
+                        sys.get_param(9).val, sys.get_param(10).val);
             self.assertFloatEqual(sys.get_param( 7).val,  10.000)
             self.assertFloatEqual(sys.get_param( 8).val,  11.180)
             self.assertFloatEqual(sys.get_param( 9).val,  10.000)
             self.assertFloatEqual(sys.get_param(10).val, -18.820)
 
-            printf("arc center (%.3f %.3f) start (%.3f %.3f) finish (%.3f %.3f)",
-                    sys.get_param(11).val, sys.get_param(12).val,
-                    sys.get_param(13).val, sys.get_param(14).val,
-                    sys.get_param(15).val, sys.get_param(16).val);
+            if verbose:
+                printf("arc center (%.3f %.3f) start (%.3f %.3f) finish (%.3f %.3f)",
+                        sys.get_param(11).val, sys.get_param(12).val,
+                        sys.get_param(13).val, sys.get_param(14).val,
+                        sys.get_param(15).val, sys.get_param(16).val);
             self.assertFloatListEqual(
                 map(lambda i: sys.get_param(i).val, range(11, 17)),
                 [101.114, 119.042, 116.477, 111.762, 117.409, 114.197])
 
-            printf("circle center (%.3f %.3f) radius %.3f",
-                    sys.get_param(17).val, sys.get_param(18).val,
-                    sys.get_param(19).val);
-            printf("%d DOF", sys.dof);
+            if verbose:
+                printf("circle center (%.3f %.3f) radius %.3f",
+                        sys.get_param(17).val, sys.get_param(18).val,
+                        sys.get_param(19).val);
+                printf("%d DOF", sys.dof);
             self.assertFloatEqual(sys.get_param(17).val, 200.000)
             self.assertFloatEqual(sys.get_param(18).val, 200.000)
             self.assertFloatEqual(sys.get_param(19).val,  17.000)
 
             self.assertEqual(sys.dof, 6)
         else:
-            printf("solve failed: problematic constraints are:");
-            for i in range(sys.faileds):
-                printf(" %lu", sys.failed[i]);
-            printf("");
-            if (sys.result == SLVS_RESULT_INCONSISTENT):
-                printf("system inconsistent");
-            else:
-                printf("system nonconvergent");
+            if verbose:
+                printf("solve failed: problematic constraints are:");
+                for i in range(sys.faileds):
+                    printf(" %lu", sys.failed[i]);
+                printf("");
+                if (sys.result == SLVS_RESULT_INCONSISTENT):
+                    printf("system inconsistent");
+                else:
+                    printf("system nonconvergent");
             self.assertTrue(False, "solve failed")
 
     def test_with_solidpython(self):
@@ -264,6 +278,66 @@ class TestSlvs(unittest.TestCase):
         self.assertEqual(
             solid.scad_render(poly),
             "\n\npolygon(paths = [[0, 1, 2, 3]], points = [[10.0000000000, 3.0000000000], [17.0000000000, 23.0000000000], [0, 0], [7.0000000000, 2.0000000000, 0.0000000000]]);")
+
+
+    def test_to_openscad(self):
+        sys = System()
+
+        # We want to find the plane for three points. The points
+        # shouldn't change, so we put them into another group.
+
+        p1 = Point3d(1, 1, 9, sys)
+        p2 = Point3d(5, 2, 2, sys)
+        p3 = Point3d(0, 7, 5, sys)
+
+        # Other entities go into another group
+        sys.default_group = 2
+
+        wrkpl = Workplane(p1, Normal3d(Param(1), Param(0), Param(0), Param(0), sys))
+
+        # Some constraints: all points are in the plane
+        # (p1 is its origin, so we don't need a constraint)
+        Constraint.on(wrkpl, p2)
+        Constraint.on(wrkpl, p3)
+
+        # Solve it (group 2 is still active)
+        sys.solve()
+
+        self.assertEqual(sys.result, SLVS_RESULT_OKAY)
+        self.assertFloatListEqual(wrkpl.origin().to_openscad(),
+            [ 1.000, 1.000, 9.000 ])
+        self.assertFloatListEqual(wrkpl.normal().vector(),
+            [ 0.863, -0.261, 0.432, -0.000 ])
+        self.assertFloatListEqual(wrkpl.to_openscad(),
+            [[0.6270915888275256, -0.22570772255200192, 0.7455281102701327, 1.0], [-0.22570772255200203, 0.8633874310873447, 0.45124069832139596, 1.0], [-0.7455281102701327, -0.45124069832139607, 0.49047901991447185, 9.0], [0, 0, 0, 1]])
+
+    def test_rendersystem_points_and_lines(self):
+        from slvs_solid import RenderSystem, union, scad_render
+
+        r = RenderSystem()
+        r.itemscale = 4
+
+        p1 = [ 2,  0, 0]
+        p2 = [ 0,  0, 0]
+        p3 = [ 2,  4, 2]
+        p4 = [-3, 2, -2]
+
+        pts = [ p1, p2, p3, p4 ]
+
+        #obj = r.point3d([2, 0, 0]) + r.point3d([0, 0, 0]) + linear_extrude(height = 0.5)(polygon([[0,0,0], [2,0,0], [0,2,0]]))
+        #obj = union()(map(r.point3d, pts)) + r.line3d(p3, p4)
+
+        sys = System()
+        p1s = Point3d(*(p1 + [sys]))
+        p2s = Point3d(*(p2 + [sys]))
+        p3s = Point3d(*(p3 + [sys]))
+        p4s = Point3d(*(p4 + [sys]))
+        line = LineSegment3d(p3s, p4s)
+
+        obj = r.system(sys)
+
+        self.assertEqual(scad_render(obj),
+            '\n\nunion() {\n\tpolyhedron(points = [[2.0000000000, 0.0000000000, 0.0000000000], [1.8000000000, -0.1154800000, -0.3464000000], [2.2000000000, -0.1154800000, -0.3464000000], [2.0000000000, 0.2309200000, -0.3464000000], [1.8000000000, -0.1154800000, 0.3464000000], [2.2000000000, -0.1154800000, 0.3464000000], [2.0000000000, 0.2309200000, 0.3464000000]], triangles = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3], [0, 4, 5], [0, 4, 6], [0, 5, 6], [4, 5, 6]]);\n\tpolyhedron(points = [[0.0000000000, 0.0000000000, 0.0000000000], [-0.2000000000, -0.1154800000, -0.3464000000], [0.2000000000, -0.1154800000, -0.3464000000], [0.0000000000, 0.2309200000, -0.3464000000], [-0.2000000000, -0.1154800000, 0.3464000000], [0.2000000000, -0.1154800000, 0.3464000000], [0.0000000000, 0.2309200000, 0.3464000000]], triangles = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3], [0, 4, 5], [0, 4, 6], [0, 5, 6], [4, 5, 6]]);\n\tpolyhedron(points = [[2.0000000000, 4.0000000000, 2.0000000000], [1.8000000000, 3.8845200000, 1.6536000000], [2.2000000000, 3.8845200000, 1.6536000000], [2.0000000000, 4.2309200000, 1.6536000000], [1.8000000000, 3.8845200000, 2.3464000000], [2.2000000000, 3.8845200000, 2.3464000000], [2.0000000000, 4.2309200000, 2.3464000000]], triangles = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3], [0, 4, 5], [0, 4, 6], [0, 5, 6], [4, 5, 6]]);\n\tpolyhedron(points = [[-3.0000000000, 2.0000000000, -2.0000000000], [-3.2000000000, 1.8845200000, -2.3464000000], [-2.8000000000, 1.8845200000, -2.3464000000], [-3.0000000000, 2.2309200000, -2.3464000000], [-3.2000000000, 1.8845200000, -1.6536000000], [-2.8000000000, 1.8845200000, -1.6536000000], [-3.0000000000, 2.2309200000, -1.6536000000]], triangles = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3], [0, 4, 5], [0, 4, 6], [0, 5, 6], [4, 5, 6]]);\n\tmultmatrix(m = [[-0.7453559925, -0.4444444444, -0.2981423970, 2.0000000000], [-0.2981423970, -0.1777777778, 0.7453559925, 4.0000000000], [-0.5962847940, 0.6444444444, 0.0000000000, 2.0000000000], [0, 0, 0, 1]]) {\n\t\tlinear_extrude(height = 0.0400000000) {\n\t\t\tpolygon(paths = [[0, 1, 2, 3]], points = [[0, -0.0200000000], [0, 0.0200000000], [6.7082039325, 0.0200000000], [6.7082039325, -0.0200000000]]);\n\t\t}\n\t}\n}')
 
 
 if __name__ == '__main__':

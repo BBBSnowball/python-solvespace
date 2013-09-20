@@ -32,6 +32,8 @@ if(sys.result == SLVS_RESULT_OKAY):
     print "solved okay"
     for p in [p1, p2, p3]:
     	print "point at (%.3f, %.3f, %.3f)" % tuple(p.to_openscad())
+    print "normal at (%.3f, %.3f, %.3f, %.3f)" % tuple(wrkpl.normal().vector())
+    print wrkpl.to_openscad()
     print "%d DOF" % sys.dof
 else:
     print("solve failed")
@@ -76,4 +78,4 @@ p3.z().value += 2
 plane2 = multmatrix(move_and_rotate(p1, p2, p3))(plane)
 geom += plane2
 
-scad_render_to_file(geom, "/tmp/test2.scad")
+scad_render_to_file(geom, "/tmp/out.scad")
